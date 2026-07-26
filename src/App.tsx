@@ -4,6 +4,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
 import MethodologiesPage from './pages/MethodologiesPage'
 import MethodologyDetailPage from './pages/MethodologyDetailPage'
+import AgentsPage from './pages/AgentsPage'
+import ToolsPage from './pages/ToolsPage'
 import ConversationsPage from './pages/ConversationsPage'
 import ChatPage from './pages/ChatPage'
 
@@ -25,6 +27,8 @@ export default function App() {
               <Route path="/" element={<Navigate to="/methodologies" replace />} />
               <Route path="/methodologies" element={<MethodologiesPage />} />
               <Route path="/methodologies/:id" element={<MethodologyDetailPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/tools" element={<ToolsPage />} />
               <Route path="/conversations" element={<ConversationsPage />} />
               <Route path="/chat/:threadId" element={<ChatPage />} />
             </Route>

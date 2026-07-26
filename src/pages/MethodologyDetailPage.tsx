@@ -3,11 +3,7 @@ import {
   Breadcrumb,
   Button,
   Descriptions,
-  Drawer,
-  Form,
-  Input,
-  InputNumber,
-  Popconfirm,
+  Modal,
   Select,
   Space,
   Table,
@@ -17,21 +13,16 @@ import {
 } from 'antd'
 import {
   ArrowLeftOutlined,
-  DeleteOutlined,
-  EditOutlined,
   PlusOutlined,
   RocketOutlined,
 } from '@ant-design/icons'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { Agent, MethodologyDetail, Middleware, Tool } from '../types'
+import type { Agent, MethodologyDetail } from '../types'
 import {
-  createAgent,
-  deleteAgent,
+  bindMethodologyAgents,
   getMethodology,
-  listMiddlewares,
-  listTools,
+  listAgents,
   publishMethodology,
-  updateAgent,
 } from '../api'
 
 function roleOf(agent: Agent): string {
@@ -43,24 +34,18 @@ export default function MethodologyDetailPage() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState<MethodologyDetail | null>(null)
-  const [tools, setTools] = useState<Tool[]>([])
-  const [middlewares, setMiddlewares] = useState<Middleware[]>([])
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editing, setEditing] = useState<Agent | null>(null)
-  const [form] = Form.useForm()
+  const [allAgents, setAllAgents] = useState<Agent[]>([])
+  const [bindOpen, setBindOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   const load = useCallback(async () => {
     if (!id) return
     setLoading(true)
     try {
-      const [m, t, mw] = await Promise.all([
-        getMethodology(id),
-        listTools('active'),
-        listMiddlewares(),
-      ])
+      const [m, agents] = await Promise.all([getMethodology(id), listAgents()])
       setDetail(m)
-      setTools(t)
-      setMiddlewares(mw)
+      setAllAgents(agents)
+      setSelectedIds(m.agents.map((a) => a.id))
     } finally {
       setLoading(false)
     }
@@ -70,73 +55,16 @@ export default function MethodologyDetailPage() {
     void load()
   }, [load])
 
-  const openCreate = () => {
-    setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
-      role: 'subagent',
-      temperature: null,
-      tool_ids: [],
-      middleware_ids: [],
-    })
-    setDrawerOpen(true)
+  const openBind = () => {
+    setSelectedIds(detail?.agents.map((a) => a.id) ?? [])
+    setBindOpen(true)
   }
 
-  const openEdit = (agent: Agent) => {
-    setEditing(agent)
-    form.setFieldsValue({
-      name: agent.name,
-      system_prompt: agent.system_prompt,
-      model: agent.model,
-      temperature: agent.temperature,
-      role: roleOf(agent),
-      description: agent.config?.description ?? '',
-      tool_ids: agent.tools.map((t) => t.id),
-      middleware_ids: agent.middlewares.map((m) => m.id),
-    })
-    setDrawerOpen(true)
-  }
-
-  const onSubmit = async () => {
+  const onBind = async () => {
     if (!id) return
-    const values = await form.validateFields()
-    const config = {
-      ...(editing?.config ?? {}),
-      role: values.role,
-      description: values.description || undefined,
-      enabled: true,
-    }
-    if (editing) {
-      await updateAgent(editing.id, {
-        name: values.name,
-        system_prompt: values.system_prompt ?? '',
-        model: values.model || null,
-        temperature: values.temperature ?? null,
-        config,
-        tool_ids: values.tool_ids ?? [],
-        middleware_ids: values.middleware_ids ?? [],
-      })
-      message.success('Agent 已更新（方法论版本可能已递增）')
-    } else {
-      await createAgent({
-        methodology_id: id,
-        name: values.name,
-        system_prompt: values.system_prompt ?? '',
-        model: values.model || null,
-        temperature: values.temperature ?? null,
-        config,
-        tool_ids: values.tool_ids ?? [],
-        middleware_ids: values.middleware_ids ?? [],
-      })
-      message.success('Agent 已创建')
-    }
-    setDrawerOpen(false)
-    await load()
-  }
-
-  const onDelete = async (agent: Agent) => {
-    await deleteAgent(agent.id)
-    message.success('已删除')
+    await bindMethodologyAgents(id, selectedIds, true)
+    message.success('已更新方法论勾选的 Agent')
+    setBindOpen(false)
     await load()
   }
 
@@ -179,8 +107,8 @@ export default function MethodologyDetailPage() {
           <Button icon={<RocketOutlined />} onClick={() => void onPublish()}>
             发布
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            添加 Agent
+          <Button type="primary" icon={<PlusOutlined />} onClick={openBind}>
+            勾选 Agent
           </Button>
         </Space>
       </Space>
@@ -195,17 +123,17 @@ export default function MethodologyDetailPage() {
         </Descriptions>
       )}
 
-      <Typography.Title level={5}>Agent 配置</Typography.Title>
+      <Typography.Title level={5}>已勾选 Agent</Typography.Title>
+      <Typography.Paragraph type="secondary">
+        Agent 在「Agent」页全局配置；此处仅勾选纳入本方法论的成员。
+      </Typography.Paragraph>
       <Table
         rowKey="id"
         loading={loading}
         dataSource={detail?.agents ?? []}
         pagination={false}
         columns={[
-          {
-            title: '名称',
-            dataIndex: 'name',
-          },
+          { title: '名称', dataIndex: 'name' },
           {
             title: '角色',
             width: 120,
@@ -237,100 +165,30 @@ export default function MethodologyDetailPage() {
                 ? row.middlewares.map((m) => <Tag key={m.id}>{m.name}</Tag>)
                 : '—',
           },
-          {
-            title: '操作',
-            width: 180,
-            render: (_, row) => (
-              <Space>
-                <Button
-                  size="small"
-                  icon={<EditOutlined />}
-                  onClick={() => openEdit(row)}
-                >
-                  编辑
-                </Button>
-                <Popconfirm
-                  title="确认删除该 Agent？"
-                  onConfirm={() => void onDelete(row)}
-                >
-                  <Button size="small" danger icon={<DeleteOutlined />}>
-                    删除
-                  </Button>
-                </Popconfirm>
-              </Space>
-            ),
-          },
         ]}
       />
 
-      <Drawer
-        title={editing ? `编辑 Agent：${editing.name}` : '创建 Agent'}
-        width={560}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+      <Modal
+        title="勾选全局 Agent"
+        open={bindOpen}
+        onCancel={() => setBindOpen(false)}
+        onOk={() => void onBind()}
+        okText="保存"
         destroyOnHidden
-        extra={
-          <Button type="primary" onClick={() => void onSubmit()}>
-            保存
-          </Button>
-        }
       >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            name="name"
-            label="名称"
-            rules={[{ required: true, message: '请输入名称' }]}
-          >
-            <Input placeholder="supervisor / document-writer" disabled={!!editing} />
-          </Form.Item>
-          <Form.Item
-            name="role"
-            label="角色"
-            rules={[{ required: true }]}
-          >
-            <Select
-              options={[
-                { value: 'supervisor', label: 'Supervisor（主 Agent）' },
-                { value: 'subagent', label: 'SubAgent（子 Agent）' },
-              ]}
-            />
-          </Form.Item>
-          <Form.Item name="description" label="描述（SubAgent 调度说明）">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="model" label="模型">
-            <Input placeholder="留空使用全局默认" />
-          </Form.Item>
-          <Form.Item name="temperature" label="Temperature">
-            <InputNumber min={0} max={2} step={0.1} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="system_prompt" label="System Prompt">
-            <Input.TextArea rows={8} placeholder="Agent 系统提示词" />
-          </Form.Item>
-          <Form.Item name="tool_ids" label="绑定 Tools">
-            <Select
-              mode="multiple"
-              allowClear
-              optionFilterProp="label"
-              options={tools.map((t) => ({
-                value: t.id,
-                label: `${t.name}${t.description ? ` — ${t.description}` : ''}`,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item name="middleware_ids" label="绑定 Middleware">
-            <Select
-              mode="multiple"
-              allowClear
-              optionFilterProp="label"
-              options={middlewares.map((m) => ({
-                value: m.id,
-                label: m.name,
-              }))}
-            />
-          </Form.Item>
-        </Form>
-      </Drawer>
+        <Select
+          mode="multiple"
+          style={{ width: '100%' }}
+          placeholder="选择要纳入本方法论的 Agent"
+          value={selectedIds}
+          onChange={setSelectedIds}
+          optionFilterProp="label"
+          options={allAgents.map((a) => ({
+            value: a.id,
+            label: `${a.name}（${roleOf(a)}）`,
+          }))}
+        />
+      </Modal>
     </>
   )
 }

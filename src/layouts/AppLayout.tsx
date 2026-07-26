@@ -3,6 +3,8 @@ import {
   ApartmentOutlined,
   CommentOutlined,
   ClusterOutlined,
+  RobotOutlined,
+  ToolOutlined,
 } from '@ant-design/icons'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 
@@ -13,6 +15,16 @@ const items = [
     key: '/methodologies',
     icon: <ApartmentOutlined />,
     label: <Link to="/methodologies">方法论</Link>,
+  },
+  {
+    key: '/agents',
+    icon: <RobotOutlined />,
+    label: <Link to="/agents">Agent</Link>,
+  },
+  {
+    key: '/tools',
+    icon: <ToolOutlined />,
+    label: <Link to="/tools">工具</Link>,
   },
   {
     key: '/conversations',

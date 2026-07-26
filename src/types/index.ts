@@ -3,6 +3,7 @@
 export interface ToolBrief {
   id: string
   name: string
+  tool_type?: string
 }
 
 export interface MiddlewareBrief {
@@ -10,11 +11,22 @@ export interface MiddlewareBrief {
   name: string
 }
 
+export interface McpServerConfig {
+  transport: 'stdio' | 'sse' | 'streamable_http'
+  command?: string | null
+  args?: string[]
+  url?: string | null
+  env?: Record<string, string>
+  headers?: Record<string, string>
+  include_tools?: string[] | null
+}
+
 export interface Tool {
   id: string
   name: string
   description: string
-  class_path: string
+  tool_type: 'builtin' | 'mcp' | string
+  class_path?: string | null
   input_schema?: Record<string, unknown> | null
   output_schema?: Record<string, unknown> | null
   config: Record<string, unknown>
@@ -30,7 +42,6 @@ export interface Middleware {
 
 export interface Agent {
   id: string
-  methodology_id: string
   name: string
   system_prompt: string
   model: string | null
@@ -91,6 +102,7 @@ export interface MethodologyCreate {
   name: string
   description?: string
   id?: string
+  agent_ids?: string[]
 }
 
 export interface MethodologyUpdate {
@@ -100,7 +112,6 @@ export interface MethodologyUpdate {
 }
 
 export interface AgentCreate {
-  methodology_id: string
   name: string
   system_prompt?: string
   model?: string | null
@@ -119,4 +130,12 @@ export interface AgentUpdate {
   config?: Record<string, unknown>
   tool_ids?: string[]
   middleware_ids?: string[]
+}
+
+export interface ToolCreate {
+  name: string
+  description?: string
+  mcp: McpServerConfig
+  status?: string
+  id?: string
 }

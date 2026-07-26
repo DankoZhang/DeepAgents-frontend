@@ -12,6 +12,7 @@ import type {
   MethodologyUpdate,
   Middleware,
   Tool,
+  ToolCreate,
 } from '../types'
 
 // ── Methodology ──────────────────────────────────────────────────────────
@@ -23,7 +24,7 @@ export const getMethodology = (id: string) =>
   api.get<MethodologyDetail>(`/api/methodology/${id}`).then((r) => r.data)
 
 export const createMethodology = (body: MethodologyCreate) =>
-  api.post<Methodology>('/api/methodology', body).then((r) => r.data)
+  api.post<MethodologyDetail>('/api/methodology', body).then((r) => r.data)
 
 export const updateMethodology = (id: string, body: MethodologyUpdate) =>
   api.patch<Methodology>(`/api/methodology/${id}`, body).then((r) => r.data)
@@ -34,14 +35,28 @@ export const deleteMethodology = (id: string) =>
 export const publishMethodology = (id: string) =>
   api.post<Methodology>(`/api/methodology/${id}/publish`).then((r) => r.data)
 
+export const bindMethodologyAgents = (
+  id: string,
+  agentIds: string[],
+  replace = true,
+) =>
+  api
+    .post<MethodologyDetail>(`/api/methodology/${id}/agents`, {
+      agent_ids: agentIds,
+      replace,
+    })
+    .then((r) => r.data)
+
 export const listMethodologyVersions = (id: string) =>
   api.get(`/api/methodology/${id}/versions`).then((r) => r.data)
 
-// ── Agent ────────────────────────────────────────────────────────────────
+// ── Agent（全局）─────────────────────────────────────────────────────────
 
-export const listAgents = (methodologyId: string) =>
+export const listAgents = (methodologyId?: string) =>
   api
-    .get<Agent[]>('/api/agent/list', { params: { methodology_id: methodologyId } })
+    .get<Agent[]>('/api/agent/list', {
+      params: methodologyId ? { methodology_id: methodologyId } : undefined,
+    })
     .then((r) => r.data)
 
 export const getAgent = (id: string) =>
@@ -75,10 +90,19 @@ export const bindAgentMiddlewares = (
 
 // ── Tool / Middleware ────────────────────────────────────────────────────
 
-export const listTools = (status?: string) =>
-  api
-    .get<Tool[]>('/api/tool/list', { params: status ? { status } : undefined })
-    .then((r) => r.data)
+export const listTools = (params?: { status?: string; tool_type?: string }) =>
+  api.get<Tool[]>('/api/tool/list', { params }).then((r) => r.data)
+
+export const createTool = (body: ToolCreate) =>
+  api.post<Tool>('/api/tool', body).then((r) => r.data)
+
+export const updateTool = (
+  id: string,
+  body: { name?: string; description?: string; mcp?: ToolCreate['mcp']; status?: string },
+) => api.patch<Tool>(`/api/tool/${id}`, body).then((r) => r.data)
+
+export const deleteTool = (id: string) =>
+  api.delete(`/api/tool/${id}`).then((r) => r.data)
 
 export const listMiddlewares = () =>
   api.get<Middleware[]>('/api/middleware/list').then((r) => r.data)
