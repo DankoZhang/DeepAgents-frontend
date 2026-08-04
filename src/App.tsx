@@ -5,6 +5,8 @@ import AppLayout from './layouts/AppLayout'
 import MethodologiesPage from './pages/MethodologiesPage'
 import MethodologyDetailPage from './pages/MethodologyDetailPage'
 import AgentsPage from './pages/AgentsPage'
+import ModelsPage from './pages/ModelsPage'
+import SkillsPage from './pages/SkillsPage'
 import ToolsPage from './pages/ToolsPage'
 import ConversationsPage from './pages/ConversationsPage'
 import ChatPage from './pages/ChatPage'
@@ -28,6 +30,8 @@ export default function App() {
               <Route path="/methodologies" element={<MethodologiesPage />} />
               <Route path="/methodologies/:id" element={<MethodologyDetailPage />} />
               <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/models" element={<ModelsPage />} />
+              <Route path="/skills" element={<SkillsPage />} />
               <Route path="/tools" element={<ToolsPage />} />
               <Route path="/conversations" element={<ConversationsPage />} />
               <Route path="/chat/:threadId" element={<ChatPage />} />

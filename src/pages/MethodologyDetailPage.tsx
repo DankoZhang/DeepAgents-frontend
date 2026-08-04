@@ -148,8 +148,17 @@ export default function MethodologyDetailPage() {
           },
           {
             title: '模型',
-            dataIndex: 'model',
-            render: (m: string | null) => m || '默认',
+            render: (_, row) =>
+              row.llm_model
+                ? `${row.llm_model.name} (${row.llm_model.model_name})`
+                : row.model || '默认',
+          },
+          {
+            title: 'Skills',
+            render: (_, row) =>
+              row.skills?.length
+                ? row.skills.map((s) => <Tag key={s.id}>{s.name}</Tag>)
+                : '—',
           },
           {
             title: 'Tools',

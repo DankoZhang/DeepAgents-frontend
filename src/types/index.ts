@@ -11,6 +11,124 @@ export interface MiddlewareBrief {
   name: string
 }
 
+export interface SkillBrief {
+  id: string
+  name: string
+  description?: string
+  status?: string
+}
+
+export interface ModelBrief {
+  id: string
+  name: string
+  provider: string
+  model_name: string
+  temperature?: number | null
+  top_p?: number | null
+  max_tokens?: number | null
+  context_length?: number | null
+  status?: string
+}
+
+export type ModelProvider = 'openai' | 'anthropic' | 'openai_compatible'
+
+export interface LlmModel {
+  id: string
+  name: string
+  provider: ModelProvider | string
+  model_name: string
+  base_url: string | null
+  temperature: number | null
+  top_p: number | null
+  max_tokens: number | null
+  context_length: number | null
+  timeout: number | null
+  config: Record<string, unknown>
+  status: string
+  has_api_key: boolean
+  created_time: string
+  updated_time: string
+}
+
+export interface LlmModelCreate {
+  name: string
+  provider?: ModelProvider
+  model_name: string
+  api_key?: string | null
+  base_url?: string | null
+  temperature?: number | null
+  top_p?: number | null
+  max_tokens?: number | null
+  context_length?: number | null
+  timeout?: number | null
+  config?: Record<string, unknown>
+  status?: string
+  id?: string
+}
+
+export interface LlmModelUpdate {
+  name?: string
+  provider?: ModelProvider
+  model_name?: string
+  api_key?: string | null
+  clear_api_key?: boolean
+  base_url?: string | null
+  temperature?: number | null
+  top_p?: number | null
+  max_tokens?: number | null
+  context_length?: number | null
+  timeout?: number | null
+  config?: Record<string, unknown>
+  status?: string
+}
+
+export interface ModelTestRequest {
+  model_id?: string | null
+  provider?: ModelProvider | null
+  model_name?: string | null
+  api_key?: string | null
+  base_url?: string | null
+  temperature?: number | null
+  top_p?: number | null
+  max_tokens?: number | null
+  timeout?: number | null
+  config?: Record<string, unknown> | null
+}
+
+export interface ModelTestResult {
+  ok: boolean
+  message: string
+  reply_preview?: string | null
+}
+
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  content: string
+  config: Record<string, unknown>
+  status: string
+  created_time: string
+  updated_time: string
+}
+
+export interface SkillCreate {
+  name: string
+  description?: string
+  content: string
+  config?: Record<string, unknown>
+  status?: string
+  id?: string
+}
+
+export interface SkillUpdate {
+  name?: string
+  description?: string
+  content?: string
+  config?: Record<string, unknown>
+  status?: string
+}
+
 export interface McpServerConfig {
   transport: 'stdio' | 'sse' | 'streamable_http'
   command?: string | null
@@ -44,11 +162,12 @@ export interface Agent {
   id: string
   name: string
   system_prompt: string
-  model: string | null
-  temperature: number | null
+  model_id: string | null
   config: Record<string, unknown>
+  llm_model?: ModelBrief | null
   tools: ToolBrief[]
   middlewares: MiddlewareBrief[]
+  skills: SkillBrief[]
 }
 
 export interface Methodology {
@@ -114,22 +233,22 @@ export interface MethodologyUpdate {
 export interface AgentCreate {
   name: string
   system_prompt?: string
-  model?: string | null
-  temperature?: number | null
+  model_id?: string | null
   config?: Record<string, unknown>
   tool_ids?: string[]
   middleware_ids?: string[]
+  skill_ids?: string[]
   id?: string
 }
 
 export interface AgentUpdate {
   name?: string
   system_prompt?: string
-  model?: string | null
-  temperature?: number | null
+  model_id?: string | null
   config?: Record<string, unknown>
   tool_ids?: string[]
   middleware_ids?: string[]
+  skill_ids?: string[]
 }
 
 export interface ToolCreate {

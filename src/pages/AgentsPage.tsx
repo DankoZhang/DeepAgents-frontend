@@ -4,7 +4,6 @@ import {
   Drawer,
   Form,
   Input,
-  InputNumber,
   Popconfirm,
   Select,
   Space,
@@ -14,12 +13,14 @@ import {
   message,
 } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
-import type { Agent, Middleware, Tool } from '../types'
+import type { Agent, LlmModel, Middleware, Skill, Tool } from '../types'
 import {
   createAgent,
   deleteAgent,
   listAgents,
   listMiddlewares,
+  listModels,
+  listSkills,
   listTools,
   updateAgent,
 } from '../api'
@@ -28,11 +29,20 @@ function roleOf(agent: Agent): string {
   return String(agent.config?.role ?? 'subagent')
 }
 
+function modelLabel(agent: Agent): string {
+  if (agent.llm_model) {
+    return `${agent.llm_model.name} (${agent.llm_model.model_name})`
+  }
+  return '默认'
+}
+
 export default function AgentsPage() {
   const [loading, setLoading] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
   const [tools, setTools] = useState<Tool[]>([])
   const [middlewares, setMiddlewares] = useState<Middleware[]>([])
+  const [models, setModels] = useState<LlmModel[]>([])
+  const [skills, setSkills] = useState<Skill[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Agent | null>(null)
   const [form] = Form.useForm()
@@ -40,14 +50,18 @@ export default function AgentsPage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [a, t, mw] = await Promise.all([
+      const [a, t, mw, m, s] = await Promise.all([
         listAgents(),
         listTools({ status: 'active' }),
         listMiddlewares(),
+        listModels({ status: 'active' }),
+        listSkills({ status: 'active' }),
       ])
       setAgents(a)
       setTools(t)
       setMiddlewares(mw)
+      setModels(m)
+      setSkills(s)
     } finally {
       setLoading(false)
     }
@@ -62,9 +76,10 @@ export default function AgentsPage() {
     form.resetFields()
     form.setFieldsValue({
       role: 'subagent',
-      temperature: null,
+      model_id: undefined,
       tool_ids: [],
       middleware_ids: [],
+      skill_ids: [],
     })
     setDrawerOpen(true)
   }
@@ -74,12 +89,12 @@ export default function AgentsPage() {
     form.setFieldsValue({
       name: agent.name,
       system_prompt: agent.system_prompt,
-      model: agent.model,
-      temperature: agent.temperature,
+      model_id: agent.model_id ?? undefined,
       role: roleOf(agent),
       description: agent.config?.description ?? '',
       tool_ids: agent.tools.map((t) => t.id),
       middleware_ids: agent.middlewares.map((m) => m.id),
+      skill_ids: (agent.skills ?? []).map((s) => s.id),
     })
     setDrawerOpen(true)
   }
@@ -92,27 +107,21 @@ export default function AgentsPage() {
       description: values.description || undefined,
       enabled: true,
     }
+    const payload = {
+      name: values.name,
+      system_prompt: values.system_prompt ?? '',
+      // 清空目录选择时：创建走服务端默认；更新传空串回落 model_default
+      model_id: values.model_id || (editing ? '' : null),
+      config,
+      tool_ids: values.tool_ids ?? [],
+      middleware_ids: values.middleware_ids ?? [],
+      skill_ids: values.skill_ids ?? [],
+    }
     if (editing) {
-      await updateAgent(editing.id, {
-        name: values.name,
-        system_prompt: values.system_prompt ?? '',
-        model: values.model || null,
-        temperature: values.temperature ?? null,
-        config,
-        tool_ids: values.tool_ids ?? [],
-        middleware_ids: values.middleware_ids ?? [],
-      })
+      await updateAgent(editing.id, payload)
       message.success('Agent 已更新（相关方法论版本可能已递增）')
     } else {
-      await createAgent({
-        name: values.name,
-        system_prompt: values.system_prompt ?? '',
-        model: values.model || null,
-        temperature: values.temperature ?? null,
-        config,
-        tool_ids: values.tool_ids ?? [],
-        middleware_ids: values.middleware_ids ?? [],
-      })
+      await createAgent(payload)
       message.success('全局 Agent 已创建')
     }
     setDrawerOpen(false)
@@ -133,7 +142,7 @@ export default function AgentsPage() {
             全局 Agent
           </Typography.Title>
           <Typography.Text type="secondary">
-            配置 Prompt / 模型，勾选内置或 MCP 工具与内置中间件；再在方法论中勾选使用。
+            配置 Prompt / 目录模型 / Skills，勾选工具与中间件；再在方法论中勾选使用。
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -161,8 +170,14 @@ export default function AgentsPage() {
           },
           {
             title: '模型',
-            dataIndex: 'model',
-            render: (m: string | null) => m || '默认',
+            render: (_, row) => modelLabel(row),
+          },
+          {
+            title: 'Skills',
+            render: (_, row) =>
+              row.skills?.length
+                ? row.skills.map((s) => <Tag key={s.id}>{s.name}</Tag>)
+                : '—',
           },
           {
             title: 'Tools',
@@ -239,14 +254,30 @@ export default function AgentsPage() {
           <Form.Item name="description" label="描述（SubAgent 调度说明）">
             <Input.TextArea rows={2} />
           </Form.Item>
-          <Form.Item name="model" label="模型">
-            <Input placeholder="留空使用全局默认" />
-          </Form.Item>
-          <Form.Item name="temperature" label="Temperature">
-            <InputNumber min={0} max={2} step={0.1} style={{ width: '100%' }} />
+          <Form.Item name="model_id" label="目录模型">
+            <Select
+              allowClear
+              placeholder="从大模型目录选择（留空则用默认模型）"
+              optionFilterProp="label"
+              options={models.map((m) => ({
+                value: m.id,
+                label: `${m.name} · ${m.provider}/${m.model_name}`,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="system_prompt" label="System Prompt">
             <Input.TextArea rows={8} placeholder="Agent 系统提示词" />
+          </Form.Item>
+          <Form.Item name="skill_ids" label="绑定 Skills">
+            <Select
+              mode="multiple"
+              allowClear
+              optionFilterProp="label"
+              options={skills.map((s) => ({
+                value: s.id,
+                label: `${s.name}${s.description ? ` — ${s.description}` : ''}`,
+              }))}
+            />
           </Form.Item>
           <Form.Item name="tool_ids" label="绑定 Tools（内置 + MCP）">
             <Select

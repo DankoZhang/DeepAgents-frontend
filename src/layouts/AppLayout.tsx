@@ -1,6 +1,8 @@
 import { Layout, Menu, Typography, theme } from 'antd'
 import {
   ApartmentOutlined,
+  BookOutlined,
+  CloudServerOutlined,
   CommentOutlined,
   ClusterOutlined,
   RobotOutlined,
@@ -20,6 +22,16 @@ const items = [
     key: '/agents',
     icon: <RobotOutlined />,
     label: <Link to="/agents">Agent</Link>,
+  },
+  {
+    key: '/models',
+    icon: <CloudServerOutlined />,
+    label: <Link to="/models">大模型</Link>,
+  },
+  {
+    key: '/skills',
+    icon: <BookOutlined />,
+    label: <Link to="/skills">Skills</Link>,
   },
   {
     key: '/tools',

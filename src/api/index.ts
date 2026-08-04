@@ -6,11 +6,19 @@ import type {
   ChatResponse,
   Conversation,
   ConversationMessages,
+  LlmModel,
+  LlmModelCreate,
+  LlmModelUpdate,
   Methodology,
   MethodologyCreate,
   MethodologyDetail,
   MethodologyUpdate,
   Middleware,
+  ModelTestRequest,
+  ModelTestResult,
+  Skill,
+  SkillCreate,
+  SkillUpdate,
   Tool,
   ToolCreate,
 } from '../types'
@@ -87,6 +95,58 @@ export const bindAgentMiddlewares = (
       replace,
     })
     .then((r) => r.data)
+
+export const bindAgentSkills = (
+  id: string,
+  skillIds: string[],
+  replace = true,
+) =>
+  api
+    .post<Agent>(`/api/agent/${id}/skills`, {
+      skill_ids: skillIds,
+      replace,
+    })
+    .then((r) => r.data)
+
+// ── 大模型目录 ───────────────────────────────────────────────────────────
+
+export const listModels = (params?: { status?: string }) =>
+  api.get<LlmModel[]>('/api/model/list', { params }).then((r) => r.data)
+
+export const getModel = (id: string) =>
+  api.get<LlmModel>(`/api/model/${id}`).then((r) => r.data)
+
+export const createModel = (body: LlmModelCreate) =>
+  api.post<LlmModel>('/api/model', body).then((r) => r.data)
+
+export const updateModel = (id: string, body: LlmModelUpdate) =>
+  api.patch<LlmModel>(`/api/model/${id}`, body).then((r) => r.data)
+
+export const deleteModel = (id: string) =>
+  api.delete(`/api/model/${id}`).then((r) => r.data)
+
+export const testModel = (body: ModelTestRequest) =>
+  api.post<ModelTestResult>('/api/model/test', body).then((r) => r.data)
+
+export const testModelById = (id: string) =>
+  api.post<ModelTestResult>(`/api/model/${id}/test`).then((r) => r.data)
+
+// ── Skill ────────────────────────────────────────────────────────────────
+
+export const listSkills = (params?: { status?: string }) =>
+  api.get<Skill[]>('/api/skill/list', { params }).then((r) => r.data)
+
+export const getSkill = (id: string) =>
+  api.get<Skill>(`/api/skill/${id}`).then((r) => r.data)
+
+export const createSkill = (body: SkillCreate) =>
+  api.post<Skill>('/api/skill', body).then((r) => r.data)
+
+export const updateSkill = (id: string, body: SkillUpdate) =>
+  api.patch<Skill>(`/api/skill/${id}`, body).then((r) => r.data)
+
+export const deleteSkill = (id: string) =>
+  api.delete(`/api/skill/${id}`).then((r) => r.data)
 
 // ── Tool / Middleware ────────────────────────────────────────────────────
 
