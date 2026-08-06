@@ -214,3 +214,119 @@ export const chatResume = (threadId: string, approve: boolean) =>
   api
     .post<ChatResponse>('/api/chat/resume', { thread_id: threadId, approve })
     .then((r) => r.data)
+
+function authHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'text/event-stream',
+  }
+  try {
+    const fromStorage = localStorage.getItem('auth_token')
+    if (fromStorage?.trim()) {
+      headers.Authorization = `Bearer ${fromStorage.trim()}`
+      return headers
+    }
+  } catch {
+    // ignore
+  }
+  const fromEnv = import.meta.env.VITE_AUTH_TOKEN as string | undefined
+  if (fromEnv?.trim()) {
+    headers.Authorization = `Bearer ${fromEnv.trim()}`
+  }
+  return headers
+}
+
+async function readChatSse(
+  url: string,
+  body: unknown,
+  onToken?: (text: string) => void,
+): Promise<ChatResponse> {
+  const baseURL = import.meta.env.VITE_API_BASE ?? ''
+  const res = await fetch(`${baseURL}${url}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text || `HTTP ${res.status}`)
+  }
+  if (!res.body) {
+    throw new Error('响应无 body')
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let donePayload: ChatResponse | null = null
+  let eventName = 'message'
+
+  const flushBlock = (block: string) => {
+    const lines = block.split('\n')
+    let dataLines: string[] = []
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        eventName = line.slice(6).trim()
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      }
+    }
+    if (!dataLines.length) return
+    const raw = dataLines.join('\n')
+    let data: unknown = raw
+    try {
+      data = JSON.parse(raw)
+    } catch {
+      // keep string
+    }
+    if (eventName === 'token' && data && typeof data === 'object' && 'text' in data) {
+      onToken?.(String((data as { text: string }).text))
+    } else if (eventName === 'done' && data && typeof data === 'object') {
+      donePayload = data as ChatResponse
+    } else if (eventName === 'error') {
+      const msg =
+        data && typeof data === 'object' && 'message' in data
+          ? String((data as { message: string }).message)
+          : String(data)
+      throw new Error(msg)
+    }
+    eventName = 'message'
+  }
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let idx: number
+    while ((idx = buffer.indexOf('\n\n')) >= 0) {
+      const block = buffer.slice(0, idx)
+      buffer = buffer.slice(idx + 2)
+      flushBlock(block)
+    }
+  }
+  if (buffer.trim()) flushBlock(buffer)
+
+  if (!donePayload) {
+    throw new Error('流式响应未收到 done 事件')
+  }
+  return donePayload
+}
+
+/** 流式聊天：边收 token 边回调，最终返回完整 ChatResponse。 */
+export const chatStream = (
+  threadId: string,
+  message: string,
+  onToken?: (text: string) => void,
+) =>
+  readChatSse('/api/chat/stream', { thread_id: threadId, message }, onToken)
+
+export const chatResumeStream = (
+  threadId: string,
+  approve: boolean,
+  onToken?: (text: string) => void,
+) =>
+  readChatSse(
+    '/api/chat/resume/stream',
+    { thread_id: threadId, approve },
+    onToken,
+  )

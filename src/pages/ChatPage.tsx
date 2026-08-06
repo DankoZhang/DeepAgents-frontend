@@ -18,8 +18,8 @@ import {
 import { useNavigate, useParams } from 'react-router-dom'
 import type { ChatMessage, Conversation } from '../types'
 import {
-  chat,
-  chatResume,
+  chatResumeStream,
+  chatStream,
   getConversation,
   getConversationMessages,
 } from '../api'
@@ -81,11 +81,18 @@ export default function ChatPage() {
   }, [messages, interrupted])
 
   const applyChatResult = (reply: string, interruptedFlag: boolean, interruptText?: string | null) => {
-    if (reply) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
-    }
     setInterrupted(interruptedFlag)
     setInterrupt(interruptText ?? null)
+    if (!reply) return
+    setMessages((prev) => {
+      const last = prev[prev.length - 1]
+      if (last?.role === 'assistant') {
+        const copy = prev.slice()
+        copy[copy.length - 1] = { ...last, content: reply }
+        return copy
+      }
+      return [...prev, { role: 'assistant', content: reply }]
+    })
   }
 
   const onSend = async () => {
@@ -95,7 +102,20 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setSending(true)
     try {
-      const res = await chat(threadId, text)
+      const res = await chatStream(threadId, text, (piece) => {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'assistant') {
+            const copy = prev.slice()
+            copy[copy.length - 1] = {
+              ...last,
+              content: last.content + piece,
+            }
+            return copy
+          }
+          return [...prev, { role: 'assistant', content: piece }]
+        })
+      })
       applyChatResult(res.reply, res.interrupted, res.interrupt)
     } catch {
       message.error('发送失败')
@@ -108,7 +128,20 @@ export default function ChatPage() {
     if (!threadId || sending) return
     setSending(true)
     try {
-      const res = await chatResume(threadId, approve)
+      const res = await chatResumeStream(threadId, approve, (piece) => {
+        setMessages((prev) => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'assistant') {
+            const copy = prev.slice()
+            copy[copy.length - 1] = {
+              ...last,
+              content: last.content + piece,
+            }
+            return copy
+          }
+          return [...prev, { role: 'assistant', content: piece }]
+        })
+      })
       applyChatResult(res.reply, res.interrupted, res.interrupt)
       message.success(approve ? '已批准' : '已拒绝')
     } finally {
