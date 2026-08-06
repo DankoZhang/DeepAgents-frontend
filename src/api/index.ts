@@ -167,6 +167,18 @@ export const deleteTool = (id: string) =>
 export const listMiddlewares = () =>
   api.get<Middleware[]>('/api/middleware/list').then((r) => r.data)
 
+// ── Bootstrap（鉴权后幂等引导默认配置）──────────────────────────────────
+
+export interface BootstrapResult {
+  ok: boolean
+  user_id: string
+  demo_methodology_id: string
+}
+
+/** 为当前用户准备默认模型 / 工具 / demo 方法论；可重复调用。 */
+export const bootstrapUser = () =>
+  api.post<BootstrapResult>('/api/bootstrap').then((r) => r.data)
+
 // ── Conversation / Chat ──────────────────────────────────────────────────
 
 export const listConversations = (params?: {

@@ -9,6 +9,26 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+/** 生产鉴权：优先 localStorage，其次环境变量 VITE_AUTH_TOKEN */
+function resolveAuthToken(): string | null {
+  try {
+    const fromStorage = localStorage.getItem('auth_token')
+    if (fromStorage?.trim()) return fromStorage.trim()
+  } catch {
+    // SSR / 隐私模式等
+  }
+  const fromEnv = import.meta.env.VITE_AUTH_TOKEN as string | undefined
+  return fromEnv?.trim() || null
+}
+
+api.interceptors.request.use((config) => {
+  const token = resolveAuthToken()
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 api.interceptors.response.use(
   (res) => res,
   (err) => {

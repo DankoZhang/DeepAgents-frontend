@@ -82,7 +82,6 @@ export default function MethodologiesPage() {
       await updateMethodology(editing.id, {
         name: values.name,
         description: values.description ?? '',
-        bump_version: false,
       })
       message.success('已更新')
     } else {

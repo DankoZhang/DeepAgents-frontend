@@ -227,7 +227,6 @@ export interface MethodologyCreate {
 export interface MethodologyUpdate {
   name?: string
   description?: string
-  bump_version?: boolean
 }
 
 export interface AgentCreate {
