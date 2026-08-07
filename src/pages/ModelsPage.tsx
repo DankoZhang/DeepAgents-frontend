@@ -80,7 +80,6 @@ export default function ModelsPage() {
       temperature: row.temperature,
       top_p: row.top_p,
       max_tokens: row.max_tokens,
-      context_length: row.context_length,
       timeout: row.timeout,
       status: row.status,
     })
@@ -100,7 +99,6 @@ export default function ModelsPage() {
         temperature: values.temperature ?? null,
         top_p: values.top_p ?? null,
         max_tokens: values.max_tokens ?? null,
-        context_length: values.context_length ?? null,
         timeout: values.timeout ?? null,
         status: values.status,
       })
@@ -115,7 +113,6 @@ export default function ModelsPage() {
         temperature: values.temperature ?? null,
         top_p: values.top_p ?? null,
         max_tokens: values.max_tokens ?? null,
-        context_length: values.context_length ?? null,
         timeout: values.timeout ?? null,
         status: values.status ?? 'active',
       })
@@ -339,9 +336,6 @@ export default function ModelsPage() {
             <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="max_tokens" label="Max Tokens">
-            <InputNumber min={1} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item name="context_length" label="上下文窗口">
             <InputNumber min={1} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="timeout" label="Timeout（秒）">

@@ -26,7 +26,6 @@ export interface ModelBrief {
   temperature?: number | null
   top_p?: number | null
   max_tokens?: number | null
-  context_length?: number | null
   status?: string
 }
 
@@ -41,7 +40,6 @@ export interface LlmModel {
   temperature: number | null
   top_p: number | null
   max_tokens: number | null
-  context_length: number | null
   timeout: number | null
   config: Record<string, unknown>
   status: string
@@ -59,7 +57,6 @@ export interface LlmModelCreate {
   temperature?: number | null
   top_p?: number | null
   max_tokens?: number | null
-  context_length?: number | null
   timeout?: number | null
   config?: Record<string, unknown>
   status?: string
@@ -76,7 +73,6 @@ export interface LlmModelUpdate {
   temperature?: number | null
   top_p?: number | null
   max_tokens?: number | null
-  context_length?: number | null
   timeout?: number | null
   config?: Record<string, unknown>
   status?: string
