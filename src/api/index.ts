@@ -158,7 +158,13 @@ export const createTool = (body: ToolCreate) =>
 
 export const updateTool = (
   id: string,
-  body: { name?: string; description?: string; mcp?: ToolCreate['mcp']; status?: string },
+  body: {
+    name?: string
+    description?: string
+    mcp?: ToolCreate['mcp']
+    requires_hitl?: boolean
+    status?: string
+  },
 ) => api.patch<Tool>(`/api/tool/${id}`, body).then((r) => r.data)
 
 export const deleteTool = (id: string) =>

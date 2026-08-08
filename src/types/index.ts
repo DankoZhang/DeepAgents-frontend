@@ -141,8 +141,7 @@ export interface Tool {
   description: string
   tool_type: 'builtin' | 'mcp' | string
   class_path?: string | null
-  input_schema?: Record<string, unknown> | null
-  output_schema?: Record<string, unknown> | null
+  requires_hitl?: boolean
   config: Record<string, unknown>
   status: string
 }
@@ -250,6 +249,7 @@ export interface ToolCreate {
   name: string
   description?: string
   mcp: McpServerConfig
+  requires_hitl?: boolean
   status?: string
   id?: string
 }

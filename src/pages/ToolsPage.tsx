@@ -7,12 +7,13 @@ import {
   Popconfirm,
   Select,
   Space,
+  Switch,
   Table,
   Tag,
   Typography,
   message,
 } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Tool } from '../types'
 import { createTool, deleteTool, listTools, updateTool } from '../api'
 
@@ -41,6 +42,7 @@ export default function ToolsPage() {
     form.setFieldsValue({
       transport: 'stdio',
       args: '',
+      requires_hitl: false,
     })
     setDrawerOpen(true)
   }
@@ -54,18 +56,34 @@ export default function ToolsPage() {
             .map((s: string) => s.trim())
             .filter(Boolean)
         : []
+    const headers: Record<string, string> = {}
+    if (values.transport !== 'stdio' && Array.isArray(values.headers)) {
+      for (const row of values.headers as { key?: string; value?: string }[]) {
+        const key = (row?.key || '').trim()
+        if (!key) continue
+        headers[key] = row?.value ?? ''
+      }
+    }
     await createTool({
       name: values.name,
       description: values.description ?? '',
+      requires_hitl: !!values.requires_hitl,
       mcp: {
         transport: values.transport,
         command: values.transport === 'stdio' ? values.command : undefined,
         args: values.transport === 'stdio' ? args : [],
         url: values.transport !== 'stdio' ? values.url : undefined,
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
       },
     })
     message.success('MCP 工具已创建')
     setDrawerOpen(false)
+    await load()
+  }
+
+  const onToggleHitl = async (tool: Tool, checked: boolean) => {
+    await updateTool(tool.id, { requires_hitl: checked })
+    message.success(checked ? '已开启 HITL' : '已关闭 HITL')
     await load()
   }
 
@@ -91,7 +109,7 @@ export default function ToolsPage() {
             工具
           </Typography.Title>
           <Typography.Text type="secondary">
-            内置工具仅可勾选/停用；新增只能配置 MCP Server。
+            内置工具可停用并配置 HITL；新增只能配置 MCP Server。
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -114,6 +132,18 @@ export default function ToolsPage() {
             ),
           },
           { title: '描述', dataIndex: 'description', ellipsis: true },
+          {
+            title: 'HITL',
+            dataIndex: 'requires_hitl',
+            width: 90,
+            render: (v: boolean, row) => (
+              <Switch
+                size="small"
+                checked={!!v}
+                onChange={(checked) => void onToggleHitl(row, checked)}
+              />
+            ),
+          },
           {
             title: '状态',
             dataIndex: 'status',
@@ -187,6 +217,13 @@ export default function ToolsPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item
+            name="requires_hitl"
+            label="需要 HITL（调用前人工审批）"
+            valuePropName="checked"
+          >
+            <Switch />
+          </Form.Item>
+          <Form.Item
             name="transport"
             label="传输方式"
             rules={[{ required: true }]}
@@ -213,13 +250,53 @@ export default function ToolsPage() {
               </Form.Item>
             </>
           ) : (
-            <Form.Item
-              name="url"
-              label="URL"
-              rules={[{ required: true, message: '请输入 URL' }]}
-            >
-              <Input placeholder="http://localhost:8000/mcp" />
-            </Form.Item>
+            <>
+              <Form.Item
+                name="url"
+                label="URL"
+                rules={[{ required: true, message: '请输入 URL' }]}
+              >
+                <Input placeholder="http://localhost:8000/mcp" />
+              </Form.Item>
+              <Form.Item
+                label="Headers（可选）"
+                tooltip="远程鉴权等请求头，如 Authorization"
+              >
+                <Form.List name="headers">
+                  {(fields, { add, remove }) => (
+                    <>
+                      {fields.map((field) => (
+                        <Space
+                          key={field.key}
+                          style={{ display: 'flex', marginBottom: 8 }}
+                          align="baseline"
+                        >
+                          <Form.Item
+                            {...field}
+                            name={[field.name, 'key']}
+                            rules={[{ required: true, message: 'Header 名' }]}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Authorization" style={{ width: 160 }} />
+                          </Form.Item>
+                          <Form.Item
+                            {...field}
+                            name={[field.name, 'value']}
+                            style={{ marginBottom: 0 }}
+                          >
+                            <Input placeholder="Bearer sk-xxx" style={{ width: 220 }} />
+                          </Form.Item>
+                          <MinusCircleOutlined onClick={() => remove(field.name)} />
+                        </Space>
+                      ))}
+                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                        添加 Header
+                      </Button>
+                    </>
+                  )}
+                </Form.List>
+              </Form.Item>
+            </>
           )}
         </Form>
       </Drawer>
