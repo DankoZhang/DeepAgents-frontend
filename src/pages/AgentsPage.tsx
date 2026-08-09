@@ -18,12 +18,13 @@ import {
   createAgent,
   deleteAgent,
   listAgents,
-  listMiddlewares,
-  listModels,
-  listSkills,
-  listTools,
+  listAllMiddlewares,
+  listAllModels,
+  listAllSkills,
+  listAllTools,
   updateAgent,
 } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 function roleOf(agent: Agent): string {
   return String(agent.config?.role ?? 'subagent')
@@ -37,8 +38,6 @@ function modelLabel(agent: Agent): string {
 }
 
 export default function AgentsPage() {
-  const [loading, setLoading] = useState(false)
-  const [agents, setAgents] = useState<Agent[]>([])
   const [tools, setTools] = useState<Tool[]>([])
   const [middlewares, setMiddlewares] = useState<Middleware[]>([])
   const [models, setModels] = useState<LlmModel[]>([])
@@ -47,29 +46,26 @@ export default function AgentsPage() {
   const [editing, setEditing] = useState<Agent | null>(null)
   const [form] = Form.useForm()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [a, t, mw, m, s] = await Promise.all([
-        listAgents(),
-        listTools({ status: 'active' }),
-        listMiddlewares(),
-        listModels({ status: 'active' }),
-        listSkills({ status: 'active' }),
-      ])
-      setAgents(a)
-      setTools(t)
-      setMiddlewares(mw)
-      setModels(m)
-      setSkills(s)
-    } finally {
-      setLoading(false)
-    }
+  const { items: agents, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listAgents({ limit, cursor }),
+  )
+
+  const loadOptions = useCallback(async () => {
+    const [t, mw, m, s] = await Promise.all([
+      listAllTools({ status: 'active' }),
+      listAllMiddlewares(),
+      listAllModels({ status: 'active' }),
+      listAllSkills({ status: 'active' }),
+    ])
+    setTools(t)
+    setMiddlewares(mw)
+    setModels(m)
+    setSkills(s)
   }, [])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void loadOptions()
+  }, [loadOptions])
 
   const openCreate = () => {
     setEditing(null)
@@ -110,7 +106,6 @@ export default function AgentsPage() {
     const payload = {
       name: values.name,
       system_prompt: values.system_prompt ?? '',
-      // 清空目录选择时：创建走服务端默认；更新传空串回落 model_default
       model_id: values.model_id || (editing ? '' : null),
       config,
       tool_ids: values.tool_ids ?? [],
@@ -125,13 +120,13 @@ export default function AgentsPage() {
       message.success('全局 Agent 已创建')
     }
     setDrawerOpen(false)
-    await load()
+    await reload()
   }
 
   const onDelete = async (agent: Agent) => {
     await deleteAgent(agent.id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   return (
@@ -154,6 +149,7 @@ export default function AgentsPage() {
         rowKey="id"
         loading={loading}
         dataSource={agents}
+        pagination={pagination}
         columns={[
           { title: '名称', dataIndex: 'name' },
           {
@@ -241,7 +237,7 @@ export default function AgentsPage() {
             label="名称"
             rules={[{ required: true, message: '请输入名称' }]}
           >
-            <Input placeholder="supervisor / document-writer" disabled={!!editing} />
+            <Input placeholder="supervisor / qa-expert" disabled={!!editing} />
           </Form.Item>
           <Form.Item name="role" label="角色" rules={[{ required: true }]}>
             <Select

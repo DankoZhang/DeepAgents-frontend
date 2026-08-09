@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Button,
   Drawer,
@@ -16,31 +16,22 @@ import {
 import { DeleteOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Tool } from '../types'
 import { createTool, deleteTool, listTools, updateTool } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 export default function ToolsPage() {
-  const [loading, setLoading] = useState(false)
-  const [tools, setTools] = useState<Tool[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [form] = Form.useForm()
   const transport = Form.useWatch('transport', form)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      setTools(await listTools())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { items: tools, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listTools({ limit, cursor }),
+  )
 
   const openCreate = () => {
     form.resetFields()
     form.setFieldsValue({
-      transport: 'stdio',
+      // 与后端默认一致；stdio 需服务端 MCP_STDIO_ENABLED=true
+      transport: 'streamable_http',
       args: '',
       requires_hitl: false,
     })
@@ -78,13 +69,13 @@ export default function ToolsPage() {
     })
     message.success('MCP 工具已创建')
     setDrawerOpen(false)
-    await load()
+    await reload()
   }
 
   const onToggleHitl = async (tool: Tool, checked: boolean) => {
     await updateTool(tool.id, { requires_hitl: checked })
     message.success(checked ? '已开启 HITL' : '已关闭 HITL')
-    await load()
+    await reload()
   }
 
   const onDisableBuiltin = async (tool: Tool) => {
@@ -92,13 +83,13 @@ export default function ToolsPage() {
       status: tool.status === 'active' ? 'disabled' : 'active',
     })
     message.success(tool.status === 'active' ? '已停用' : '已启用')
-    await load()
+    await reload()
   }
 
   const onDeleteMcp = async (tool: Tool) => {
     await deleteTool(tool.id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   return (
@@ -109,7 +100,8 @@ export default function ToolsPage() {
             工具
           </Typography.Title>
           <Typography.Text type="secondary">
-            内置工具可停用并配置 HITL；新增只能配置 MCP Server。
+            内置工具可停用并配置 HITL；新增只能配置 MCP Server（默认
+            streamable_http；stdio 需后端开启且命令在白名单内）。
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -121,6 +113,7 @@ export default function ToolsPage() {
         rowKey="id"
         loading={loading}
         dataSource={tools}
+        pagination={pagination}
         columns={[
           { title: '名称', dataIndex: 'name' },
           {
@@ -227,12 +220,23 @@ export default function ToolsPage() {
             name="transport"
             label="传输方式"
             rules={[{ required: true }]}
+            extra={
+              transport === 'stdio'
+                ? 'stdio 会在 API 进程拉起子进程：需 MCP_STDIO_ENABLED=true，且 command 在白名单内'
+                : '生产环境请使用公网 https 端点；鉴权开启后私网/localhost URL 会被拒绝'
+            }
           >
             <Select
               options={[
-                { value: 'stdio', label: 'stdio' },
+                {
+                  value: 'streamable_http',
+                  label: 'streamable_http（推荐）',
+                },
                 { value: 'sse', label: 'sse' },
-                { value: 'streamable_http', label: 'streamable_http' },
+                {
+                  value: 'stdio',
+                  label: 'stdio（需后端开启）',
+                },
               ]}
             />
           </Form.Item>
@@ -242,8 +246,9 @@ export default function ToolsPage() {
                 name="command"
                 label="Command"
                 rules={[{ required: true, message: '请输入 command' }]}
+                extra="白名单 basename，如 npx / uvx / node / python / python3（以服务端 MCP_STDIO_COMMAND_ALLOWLIST 为准）"
               >
-                <Input placeholder="npx / uvx / python" />
+                <Input placeholder="npx" />
               </Form.Item>
               <Form.Item name="args" label="Args（空格分隔）">
                 <Input placeholder="-y @modelcontextprotocol/server-filesystem /tmp" />
@@ -254,9 +259,16 @@ export default function ToolsPage() {
               <Form.Item
                 name="url"
                 label="URL"
-                rules={[{ required: true, message: '请输入 URL' }]}
+                rules={[
+                  { required: true, message: '请输入 URL' },
+                  {
+                    pattern: /^https?:\/\//i,
+                    message: '须以 http:// 或 https:// 开头',
+                  },
+                ]}
+                extra="示例：https://mcp.example.com/mcp（勿填内网/元数据地址）"
               >
-                <Input placeholder="http://localhost:8000/mcp" />
+                <Input placeholder="https://mcp.example.com/mcp" />
               </Form.Item>
               <Form.Item
                 label="Headers（可选）"

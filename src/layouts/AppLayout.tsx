@@ -10,7 +10,7 @@ import {
   ToolOutlined,
 } from '@ant-design/icons'
 import { Link, Outlet, useLocation } from 'react-router-dom'
-import { bootstrapUser } from '../api'
+import { bootstrapUser, resetBootstrapCache } from '../api'
 
 const { Header, Sider, Content } = Layout
 
@@ -152,7 +152,13 @@ export default function AppLayout() {
                 message="用户配置引导失败"
                 description={bootError}
                 action={
-                  <Button size="small" onClick={() => setBootKey((k) => k + 1)}>
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      resetBootstrapCache()
+                      setBootKey((k) => k + 1)
+                    }}
+                  >
                     重试
                   </Button>
                 }

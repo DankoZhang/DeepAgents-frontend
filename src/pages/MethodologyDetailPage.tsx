@@ -21,7 +21,7 @@ import type { Agent, MethodologyDetail } from '../types'
 import {
   bindMethodologyAgents,
   getMethodology,
-  listAgents,
+  listAllAgents,
   publishMethodology,
 } from '../api'
 
@@ -42,7 +42,7 @@ export default function MethodologyDetailPage() {
     if (!id) return
     setLoading(true)
     try {
-      const [m, agents] = await Promise.all([getMethodology(id), listAgents()])
+      const [m, agents] = await Promise.all([getMethodology(id), listAllAgents()])
       setDetail(m)
       setAllAgents(agents)
       setSelectedIds(m.agents.map((a) => a.id))

@@ -27,6 +27,7 @@ import {
   publishMethodology,
   updateMethodology,
 } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 const statusColor: Record<string, string> = {
   draft: 'default',
@@ -42,24 +43,13 @@ const statusLabel: Record<string, string> = {
 
 export default function MethodologiesPage() {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<Methodology[]>([])
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Methodology | null>(null)
   const [form] = Form.useForm()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      setData(await listMethodologies())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { items, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listMethodologies({ limit, cursor }),
+  )
 
   const openCreate = () => {
     setEditing(null)
@@ -93,19 +83,19 @@ export default function MethodologiesPage() {
       message.success('已创建')
     }
     setOpen(false)
-    await load()
+    await reload()
   }
 
   const onPublish = async (row: Methodology) => {
     await publishMethodology(row.id)
     message.success(`已发布 ${row.name}（v${row.version}）`)
-    await load()
+    await reload()
   }
 
   const onDelete = async (row: Methodology) => {
     await deleteMethodology(row.id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   return (
@@ -127,8 +117,8 @@ export default function MethodologiesPage() {
       <Table
         rowKey="id"
         loading={loading}
-        dataSource={data}
-        pagination={{ pageSize: 10 }}
+        dataSource={items}
+        pagination={pagination}
         columns={[
           {
             title: '名称',

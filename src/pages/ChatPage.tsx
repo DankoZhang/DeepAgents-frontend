@@ -16,13 +16,21 @@ import {
   SendOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { ChatMessage, Conversation } from '../types'
+import type { ChatMessage, Conversation, HitlInterrupt } from '../types'
 import {
   chatResumeStream,
   chatStream,
   getConversation,
   getConversationMessages,
 } from '../api'
+
+type ToolActivity = {
+  id: string
+  name: string
+  status: 'running' | 'done'
+  args?: unknown
+  content?: string
+}
 
 function bubbleStyle(role: string): CSSProperties {
   const isUser = role === 'user'
@@ -39,13 +47,38 @@ function bubbleStyle(role: string): CSSProperties {
   }
 }
 
+function formatInterrupt(items: HitlInterrupt[] | null | undefined): string {
+  if (!items?.length) return '危险工具等待人工确认'
+  const lines: string[] = []
+  for (const item of items) {
+    if (item.actions?.length) {
+      for (const action of item.actions) {
+        const name = action.name || 'unknown'
+        const desc = action.description ? ` — ${action.description}` : ''
+        const args =
+          action.args && Object.keys(action.args).length
+            ? `\n  参数: ${JSON.stringify(action.args)}`
+            : ''
+        lines.push(`• ${name}${desc}${args}`)
+      }
+    } else if (item.raw != null) {
+      lines.push(
+        typeof item.raw === 'string' ? item.raw : JSON.stringify(item.raw),
+      )
+    }
+  }
+  return lines.join('\n') || '危险工具等待人工确认'
+}
+
 export default function ChatPage() {
   const { threadId = '' } = useParams()
   const navigate = useNavigate()
   const [conv, setConv] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [interrupted, setInterrupted] = useState(false)
-  const [interrupt, setInterrupt] = useState<string | null>(null)
+  const [interrupt, setInterrupt] = useState<HitlInterrupt[] | null>(null)
+  const [tools, setTools] = useState<ToolActivity[]>([])
+  const [activeSubagent, setActiveSubagent] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -64,7 +97,9 @@ export default function ChatPage() {
         getConversationMessages(threadId),
       ])
       setConv(c)
-      setMessages(hist.messages.filter((m) => m.role === 'user' || m.role === 'assistant'))
+      setMessages(
+        hist.messages.filter((m) => m.role === 'user' || m.role === 'assistant'),
+      )
       setInterrupted(hist.interrupted)
       setInterrupt(hist.interrupt ?? null)
     } finally {
@@ -78,11 +113,30 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, interrupted])
+  }, [messages, interrupted, tools, activeSubagent])
 
-  const applyChatResult = (reply: string, interruptedFlag: boolean, interruptText?: string | null) => {
+  const appendToken = (piece: string) => {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1]
+      if (last?.role === 'assistant') {
+        const copy = prev.slice()
+        copy[copy.length - 1] = {
+          ...last,
+          content: last.content + piece,
+        }
+        return copy
+      }
+      return [...prev, { role: 'assistant', content: piece }]
+    })
+  }
+
+  const applyChatResult = (
+    reply: string,
+    interruptedFlag: boolean,
+    interruptItems?: HitlInterrupt[] | null,
+  ) => {
     setInterrupted(interruptedFlag)
-    setInterrupt(interruptText ?? null)
+    setInterrupt(interruptItems ?? null)
     if (!reply) return
     setMessages((prev) => {
       const last = prev[prev.length - 1]
@@ -95,30 +149,64 @@ export default function ChatPage() {
     })
   }
 
+  const streamHandlers = {
+    onToken: appendToken,
+    onToolStart: (tool: { id?: string; name?: string; args?: unknown }) => {
+      const id = tool.id || `${tool.name || 'tool'}-${Date.now()}`
+      setTools((prev) => [
+        ...prev.filter((t) => t.id !== id),
+        {
+          id,
+          name: tool.name || 'tool',
+          status: 'running',
+          args: tool.args,
+        },
+      ])
+    },
+    onToolEnd: (tool: { id?: string; name?: string; content?: string }) => {
+      setTools((prev) => {
+        const id = tool.id
+        if (id) {
+          return prev.map((t) =>
+            t.id === id
+              ? { ...t, status: 'done', content: tool.content }
+              : t,
+          )
+        }
+        const lastRunning = [...prev].reverse().find((t) => t.status === 'running')
+        if (!lastRunning) return prev
+        return prev.map((t) =>
+          t.id === lastRunning.id
+            ? { ...t, status: 'done', content: tool.content }
+            : t,
+        )
+      })
+    },
+    onSubagent: (name: string) => setActiveSubagent(name),
+    onPing: () => {
+      // 保活，无需 UI
+    },
+  }
+
   const onSend = async () => {
     const text = input.trim()
     if (!text || !threadId || sending) return
+    if (text.length > 32000) {
+      message.error('消息过长：最多 32000 字符')
+      return
+    }
     setInput('')
     setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setTools([])
+    setActiveSubagent(null)
     setSending(true)
     try {
-      const res = await chatStream(threadId, text, (piece) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1]
-          if (last?.role === 'assistant') {
-            const copy = prev.slice()
-            copy[copy.length - 1] = {
-              ...last,
-              content: last.content + piece,
-            }
-            return copy
-          }
-          return [...prev, { role: 'assistant', content: piece }]
-        })
-      })
+      const res = await chatStream(threadId, text, streamHandlers)
       applyChatResult(res.reply, res.interrupted, res.interrupt)
-    } catch {
-      message.error('发送失败')
+    } catch (err) {
+      const detail =
+        err instanceof Error && err.message ? err.message : '发送失败'
+      message.error(detail)
     } finally {
       setSending(false)
     }
@@ -127,21 +215,10 @@ export default function ChatPage() {
   const onResume = async (approve: boolean) => {
     if (!threadId || sending) return
     setSending(true)
+    setTools([])
+    setActiveSubagent(null)
     try {
-      const res = await chatResumeStream(threadId, approve, (piece) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1]
-          if (last?.role === 'assistant') {
-            const copy = prev.slice()
-            copy[copy.length - 1] = {
-              ...last,
-              content: last.content + piece,
-            }
-            return copy
-          }
-          return [...prev, { role: 'assistant', content: piece }]
-        })
-      })
+      const res = await chatResumeStream(threadId, approve, streamHandlers)
       applyChatResult(res.reply, res.interrupted, res.interrupt)
       message.success(approve ? '已批准' : '已拒绝')
     } finally {
@@ -202,9 +279,33 @@ export default function ChatPage() {
               {m.content || '（空回复）'}
             </div>
           ))}
-          {sending && (
-            <div style={{ alignSelf: 'flex-start', marginBottom: 12 }}>
-              <Spin size="small" /> <Typography.Text type="secondary">Agent 思考中…</Typography.Text>
+          {(sending || tools.length > 0 || activeSubagent) && (
+            <div
+              style={{
+                alignSelf: 'flex-start',
+                marginBottom: 12,
+                maxWidth: '80%',
+              }}
+            >
+              {sending && (
+                <div style={{ marginBottom: 8 }}>
+                  <Spin size="small" />{' '}
+                  <Typography.Text type="secondary">
+                    {activeSubagent
+                      ? `子 Agent「${activeSubagent}」处理中…`
+                      : 'Agent 思考中…'}
+                  </Typography.Text>
+                </div>
+              )}
+              {tools.map((t) => (
+                <Tag
+                  key={t.id}
+                  color={t.status === 'running' ? 'processing' : 'default'}
+                  style={{ marginBottom: 4, whiteSpace: 'normal', height: 'auto' }}
+                >
+                  {t.status === 'running' ? '调用中' : '已完成'} · {t.name}
+                </Tag>
+              ))}
             </div>
           )}
           <div ref={bottomRef} />
@@ -217,7 +318,13 @@ export default function ChatPage() {
           type="warning"
           showIcon
           message="Human-in-the-loop：工具调用等待批准"
-          description={interrupt || '危险工具等待人工确认'}
+          description={
+            <Typography.Paragraph
+              style={{ marginBottom: 0, whiteSpace: 'pre-wrap' }}
+            >
+              {formatInterrupt(interrupt)}
+            </Typography.Paragraph>
+          }
           action={
             <Space>
               <Button
@@ -246,7 +353,9 @@ export default function ChatPage() {
       <Space.Compact style={{ width: '100%' }}>
         <Input.TextArea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => setInput(e.target.value.slice(0, 32000))}
+          maxLength={32000}
+          showCount
           placeholder={interrupted ? '请先处理 HITL 中断' : '输入消息，Enter 发送，Shift+Enter 换行'}
           autoSize={{ minRows: 2, maxRows: 6 }}
           disabled={sending || interrupted}

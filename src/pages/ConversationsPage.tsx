@@ -17,35 +17,28 @@ import type { Conversation, Methodology } from '../types'
 import {
   createConversation,
   deleteConversation,
+  listAllMethodologies,
   listConversations,
-  listMethodologies,
 } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 export default function ConversationsPage() {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<Conversation[]>([])
   const [methodologies, setMethodologies] = useState<Methodology[]>([])
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [convs, metas] = await Promise.all([
-        listConversations({ limit: 100 }),
-        listMethodologies(),
-      ])
-      setData(convs)
-      setMethodologies(metas)
-    } finally {
-      setLoading(false)
-    }
+  const { items, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listConversations({ limit, cursor }),
+  )
+
+  const loadOptions = useCallback(async () => {
+    setMethodologies(await listAllMethodologies())
   }, [])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void loadOptions()
+  }, [loadOptions])
 
   const nameOf = (id: string) =>
     methodologies.find((m) => m.id === id)?.name ?? id
@@ -63,7 +56,7 @@ export default function ConversationsPage() {
   const onDelete = async (row: Conversation) => {
     await deleteConversation(row.thread_id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   const published = methodologies.filter((m) => m.status === 'published')
@@ -94,8 +87,8 @@ export default function ConversationsPage() {
       <Table
         rowKey="id"
         loading={loading}
-        dataSource={data}
-        pagination={{ pageSize: 10 }}
+        dataSource={items}
+        pagination={pagination}
         columns={[
           {
             title: 'Thread ID',

@@ -1,9 +1,11 @@
 import { api } from './client'
+import { listAllByCursor, parsePage, type PageResult } from './paging'
 import type {
   Agent,
   AgentCreate,
   AgentUpdate,
   ChatResponse,
+  ChatSseHandlers,
   Conversation,
   ConversationMessages,
   LlmModel,
@@ -23,10 +25,29 @@ import type {
   ToolCreate,
 } from '../types'
 
+export type { PageResult } from './paging'
+export { TABLE_PAGE_SIZE } from './paging'
+
+type ListQuery = {
+  limit?: number
+  cursor?: string
+  status?: string
+  tool_type?: string
+  methodology_id?: string
+}
+
 // ── Methodology ──────────────────────────────────────────────────────────
 
-export const listMethodologies = () =>
-  api.get<Methodology[]>('/api/methodology/list').then((r) => r.data)
+export const listMethodologies = (params?: ListQuery) =>
+  api
+    .get<Methodology[]>('/api/methodology/list', { params })
+    .then(parsePage)
+
+/** 下拉等需要全量时：按 cursor 拉完。 */
+export const listAllMethodologies = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
+  listAllByCursor((cursor) =>
+    listMethodologies({ ...params, limit: 100, cursor }),
+  )
 
 export const getMethodology = (id: string) =>
   api.get<MethodologyDetail>(`/api/methodology/${id}`).then((r) => r.data)
@@ -60,12 +81,11 @@ export const listMethodologyVersions = (id: string) =>
 
 // ── Agent（全局）─────────────────────────────────────────────────────────
 
-export const listAgents = (methodologyId?: string) =>
-  api
-    .get<Agent[]>('/api/agent/list', {
-      params: methodologyId ? { methodology_id: methodologyId } : undefined,
-    })
-    .then((r) => r.data)
+export const listAgents = (params?: ListQuery) =>
+  api.get<Agent[]>('/api/agent/list', { params }).then(parsePage)
+
+export const listAllAgents = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
+  listAllByCursor((cursor) => listAgents({ ...params, limit: 100, cursor }))
 
 export const getAgent = (id: string) =>
   api.get<Agent>(`/api/agent/${id}`).then((r) => r.data)
@@ -110,8 +130,11 @@ export const bindAgentSkills = (
 
 // ── 大模型目录 ───────────────────────────────────────────────────────────
 
-export const listModels = (params?: { status?: string }) =>
-  api.get<LlmModel[]>('/api/model/list', { params }).then((r) => r.data)
+export const listModels = (params?: ListQuery) =>
+  api.get<LlmModel[]>('/api/model/list', { params }).then(parsePage)
+
+export const listAllModels = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
+  listAllByCursor((cursor) => listModels({ ...params, limit: 100, cursor }))
 
 export const getModel = (id: string) =>
   api.get<LlmModel>(`/api/model/${id}`).then((r) => r.data)
@@ -133,8 +156,11 @@ export const testModelById = (id: string) =>
 
 // ── Skill ────────────────────────────────────────────────────────────────
 
-export const listSkills = (params?: { status?: string }) =>
-  api.get<Skill[]>('/api/skill/list', { params }).then((r) => r.data)
+export const listSkills = (params?: ListQuery) =>
+  api.get<Skill[]>('/api/skill/list', { params }).then(parsePage)
+
+export const listAllSkills = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
+  listAllByCursor((cursor) => listSkills({ ...params, limit: 100, cursor }))
 
 export const getSkill = (id: string) =>
   api.get<Skill>(`/api/skill/${id}`).then((r) => r.data)
@@ -150,8 +176,11 @@ export const deleteSkill = (id: string) =>
 
 // ── Tool / Middleware ────────────────────────────────────────────────────
 
-export const listTools = (params?: { status?: string; tool_type?: string }) =>
-  api.get<Tool[]>('/api/tool/list', { params }).then((r) => r.data)
+export const listTools = (params?: ListQuery) =>
+  api.get<Tool[]>('/api/tool/list', { params }).then(parsePage)
+
+export const listAllTools = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
+  listAllByCursor((cursor) => listTools({ ...params, limit: 100, cursor }))
 
 export const createTool = (body: ToolCreate) =>
   api.post<Tool>('/api/tool', body).then((r) => r.data)
@@ -170,8 +199,11 @@ export const updateTool = (
 export const deleteTool = (id: string) =>
   api.delete(`/api/tool/${id}`).then((r) => r.data)
 
-export const listMiddlewares = () =>
-  api.get<Middleware[]>('/api/middleware/list').then((r) => r.data)
+export const listMiddlewares = (params?: ListQuery) =>
+  api.get<Middleware[]>('/api/middleware/list', { params }).then(parsePage)
+
+export const listAllMiddlewares = () =>
+  listAllByCursor((cursor) => listMiddlewares({ limit: 100, cursor }))
 
 // ── Bootstrap（鉴权后幂等引导默认配置）──────────────────────────────────
 
@@ -181,9 +213,30 @@ export interface BootstrapResult {
   demo_methodology_id: string
 }
 
+/** 进程内去重：StrictMode 双调用 / 重试共用同一 Promise。 */
+let bootstrapInflight: Promise<BootstrapResult> | null = null
+
 /** 为当前用户准备默认模型 / 工具 / demo 方法论；可重复调用。 */
-export const bootstrapUser = () =>
-  api.post<BootstrapResult>('/api/bootstrap').then((r) => r.data)
+export const bootstrapUser = () => {
+  if (!bootstrapInflight) {
+    bootstrapInflight = api
+      .post<BootstrapResult>('/api/bootstrap')
+      .then((r) => r.data)
+      .finally(() => {
+        // 成功后保留 resolved promise，避免刷新路由重复打；失败允许重试
+      })
+      .catch((err) => {
+        bootstrapInflight = null
+        throw err
+      })
+  }
+  return bootstrapInflight
+}
+
+/** 测试 / 强制重试时清空去重缓存。 */
+export const resetBootstrapCache = () => {
+  bootstrapInflight = null
+}
 
 // ── Conversation / Chat ──────────────────────────────────────────────────
 
@@ -191,8 +244,10 @@ export const listConversations = (params?: {
   methodology_id?: string
   user_id?: string
   limit?: number
+  cursor?: string
 }) =>
-  api.get<Conversation[]>('/api/conversation/list', { params }).then((r) => r.data)
+  api.get<Conversation[]>('/api/conversation/list', { params }).then(parsePage)
+
 
 export const createConversation = (body: {
   methodology_id: string
@@ -245,7 +300,7 @@ function authHeaders(): HeadersInit {
 async function readChatSse(
   url: string,
   body: unknown,
-  onToken?: (text: string) => void,
+  handlers?: ChatSseHandlers,
 ): Promise<ChatResponse> {
   const baseURL = import.meta.env.VITE_API_BASE ?? ''
   const res = await fetch(`${baseURL}${url}`, {
@@ -285,16 +340,57 @@ async function readChatSse(
     } catch {
       // keep string
     }
-    if (eventName === 'token' && data && typeof data === 'object' && 'text' in data) {
-      onToken?.(String((data as { text: string }).text))
-    } else if (eventName === 'done' && data && typeof data === 'object') {
-      donePayload = data as ChatResponse
-    } else if (eventName === 'error') {
-      const msg =
-        data && typeof data === 'object' && 'message' in data
-          ? String((data as { message: string }).message)
-          : String(data)
-      throw new Error(msg)
+
+    switch (eventName) {
+      case 'meta':
+        if (data && typeof data === 'object') {
+          handlers?.onMeta?.(data as Record<string, unknown>)
+        }
+        break
+      case 'token':
+        if (data && typeof data === 'object' && 'text' in data) {
+          handlers?.onToken?.(String((data as { text: string }).text))
+        }
+        break
+      case 'tool_start':
+        if (data && typeof data === 'object') {
+          handlers?.onToolStart?.(data as { id?: string; name?: string; args?: unknown })
+        }
+        break
+      case 'tool_end':
+        if (data && typeof data === 'object') {
+          handlers?.onToolEnd?.(
+            data as { id?: string; name?: string; content?: string },
+          )
+        }
+        break
+      case 'todo':
+        if (data && typeof data === 'object') {
+          handlers?.onTodo?.(data as { todos?: unknown })
+        }
+        break
+      case 'subagent':
+        if (data && typeof data === 'object' && 'name' in data) {
+          handlers?.onSubagent?.(String((data as { name: string }).name))
+        }
+        break
+      case 'ping':
+        handlers?.onPing?.()
+        break
+      case 'done':
+        if (data && typeof data === 'object') {
+          donePayload = data as ChatResponse
+        }
+        break
+      case 'error': {
+        const msg =
+          data && typeof data === 'object' && 'message' in data
+            ? String((data as { message: string }).message)
+            : String(data)
+        throw new Error(msg)
+      }
+      default:
+        break
     }
     eventName = 'message'
   }
@@ -318,21 +414,27 @@ async function readChatSse(
   return donePayload
 }
 
-/** 流式聊天：边收 token 边回调，最终返回完整 ChatResponse。 */
+/** 流式聊天：边收事件边回调，最终返回完整 ChatResponse。 */
 export const chatStream = (
   threadId: string,
   message: string,
-  onToken?: (text: string) => void,
-) =>
-  readChatSse('/api/chat/stream', { thread_id: threadId, message }, onToken)
+  handlers?: ChatSseHandlers | ((text: string) => void),
+) => {
+  const h: ChatSseHandlers =
+    typeof handlers === 'function' ? { onToken: handlers } : handlers ?? {}
+  return readChatSse('/api/chat/stream', { thread_id: threadId, message }, h)
+}
 
 export const chatResumeStream = (
   threadId: string,
   approve: boolean,
-  onToken?: (text: string) => void,
-) =>
-  readChatSse(
+  handlers?: ChatSseHandlers | ((text: string) => void),
+) => {
+  const h: ChatSseHandlers =
+    typeof handlers === 'function' ? { onToken: handlers } : handlers ?? {}
+  return readChatSse(
     '/api/chat/resume/stream',
     { thread_id: threadId, approve },
-    onToken,
+    h,
   )
+}

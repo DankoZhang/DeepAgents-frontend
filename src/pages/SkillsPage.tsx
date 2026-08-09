@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Button,
   Drawer,
@@ -20,6 +20,7 @@ import {
   listSkills,
   updateSkill,
 } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 const DEFAULT_CONTENT = `---
 name: my-skill
@@ -32,24 +33,13 @@ description: 简要说明该 Skill 的用途
 `
 
 export default function SkillsPage() {
-  const [loading, setLoading] = useState(false)
-  const [skills, setSkills] = useState<Skill[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Skill | null>(null)
   const [form] = Form.useForm()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      setSkills(await listSkills())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { items: skills, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listSkills({ limit, cursor }),
+  )
 
   const openCreate = () => {
     setEditing(null)
@@ -92,13 +82,13 @@ export default function SkillsPage() {
       message.success('Skill 已创建')
     }
     setDrawerOpen(false)
-    await load()
+    await reload()
   }
 
   const onDelete = async (row: Skill) => {
     await deleteSkill(row.id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   const onToggleStatus = async (row: Skill) => {
@@ -106,7 +96,7 @@ export default function SkillsPage() {
       status: row.status === 'active' ? 'disabled' : 'active',
     })
     message.success(row.status === 'active' ? '已停用' : '已启用')
-    await load()
+    await reload()
   }
 
   return (
@@ -129,6 +119,7 @@ export default function SkillsPage() {
         rowKey="id"
         loading={loading}
         dataSource={skills}
+        pagination={pagination}
         columns={[
           { title: '名称', dataIndex: 'name', width: 200 },
           { title: '描述', dataIndex: 'description', ellipsis: true },

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Button,
   Drawer,
@@ -28,6 +28,7 @@ import {
   testModelById,
   updateModel,
 } from '../api'
+import { useCursorPager } from '../hooks/useCursorPager'
 
 const PROVIDER_OPTIONS: { value: ModelProvider; label: string }[] = [
   { value: 'openai', label: 'OpenAI' },
@@ -36,26 +37,15 @@ const PROVIDER_OPTIONS: { value: ModelProvider; label: string }[] = [
 ]
 
 export default function ModelsPage() {
-  const [loading, setLoading] = useState(false)
   const [testingId, setTestingId] = useState<string | null>(null)
-  const [models, setModels] = useState<LlmModel[]>([])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<LlmModel | null>(null)
   const [form] = Form.useForm()
   const provider = Form.useWatch('provider', form)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      setModels(await listModels())
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { items: models, loading, pagination, reload } = useCursorPager(
+    ({ limit, cursor }) => listModels({ limit, cursor }),
+  )
 
   const openCreate = () => {
     setEditing(null)
@@ -119,7 +109,7 @@ export default function ModelsPage() {
       message.success('模型已创建')
     }
     setDrawerOpen(false)
-    await load()
+    await reload()
   }
 
   const onTestSaved = async (row: LlmModel) => {
@@ -172,7 +162,7 @@ export default function ModelsPage() {
   const onDelete = async (row: LlmModel) => {
     await deleteModel(row.id)
     message.success('已删除')
-    await load()
+    await reload()
   }
 
   const onToggleStatus = async (row: LlmModel) => {
@@ -180,7 +170,7 @@ export default function ModelsPage() {
       status: row.status === 'active' ? 'disabled' : 'active',
     })
     message.success(row.status === 'active' ? '已停用' : '已启用')
-    await load()
+    await reload()
   }
 
   return (
@@ -203,6 +193,7 @@ export default function ModelsPage() {
         rowKey="id"
         loading={loading}
         dataSource={models}
+        pagination={pagination}
         columns={[
           { title: '名称', dataIndex: 'name' },
           {
@@ -325,7 +316,11 @@ export default function ModelsPage() {
           {(provider === 'openai_compatible' ||
             editing?.provider === 'openai_compatible' ||
             provider === 'openai') && (
-            <Form.Item name="base_url" label="Base URL">
+            <Form.Item
+              name="base_url"
+              label="Base URL"
+              extra="生产鉴权开启后，私网/localhost 地址会被拒绝（本地 AUTH_DISABLED 除外）"
+            >
               <Input placeholder="https://api.deepseek.com/v1" />
             </Form.Item>
           )}

@@ -192,6 +192,20 @@ export interface ChatMessage {
   role: string
   content: string
   name?: string | null
+  tool_calls?: Array<{ id?: string; name?: string; args?: unknown }> | null
+  tool_call_id?: string | null
+}
+
+export interface HitlAction {
+  name?: string | null
+  args?: Record<string, unknown>
+  description?: string | null
+}
+
+export interface HitlInterrupt {
+  id?: string | null
+  actions: HitlAction[]
+  raw?: unknown
 }
 
 export interface ConversationMessages {
@@ -200,16 +214,26 @@ export interface ConversationMessages {
   methodology_version: number
   messages: ChatMessage[]
   interrupted: boolean
-  interrupt?: string | null
+  interrupt?: HitlInterrupt[] | null
 }
 
 export interface ChatResponse {
   thread_id: string
   reply: string
   interrupted: boolean
-  interrupt?: string | null
+  interrupt?: HitlInterrupt[] | null
   methodology_id: string
   methodology_version: number
+}
+
+export interface ChatSseHandlers {
+  onMeta?: (meta: Record<string, unknown>) => void
+  onToken?: (text: string) => void
+  onToolStart?: (tool: { id?: string; name?: string; args?: unknown }) => void
+  onToolEnd?: (tool: { id?: string; name?: string; content?: string }) => void
+  onTodo?: (payload: { todos?: unknown }) => void
+  onSubagent?: (name: string) => void
+  onPing?: () => void
 }
 
 export interface MethodologyCreate {
