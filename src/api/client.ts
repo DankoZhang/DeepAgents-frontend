@@ -32,12 +32,19 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    const detail =
-      err?.response?.data?.detail ??
-      err?.message ??
-      '请求失败'
-    const text = typeof detail === 'string' ? detail : JSON.stringify(detail)
-    message.error(text)
+    const status = err?.response?.status as number | undefined
+    const url = String(err?.config?.url ?? '')
+    // 会话详情/消息 404 由 ChatPage 自行回退列表，避免全局 toast 刷屏
+    const isConversationMiss =
+      status === 404 && /\/api\/conversation\/[^/]+/.test(url)
+    if (!isConversationMiss) {
+      const detail =
+        err?.response?.data?.detail ??
+        err?.message ??
+        '请求失败'
+      const text = typeof detail === 'string' ? detail : JSON.stringify(detail)
+      message.error(text)
+    }
     return Promise.reject(err)
   },
 )

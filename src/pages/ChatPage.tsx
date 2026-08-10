@@ -102,10 +102,19 @@ export default function ChatPage() {
       )
       setInterrupted(hist.interrupted)
       setInterrupt(hist.interrupt ?? null)
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      // 清库 / 删除后旧 URL 会 404，回到会话列表避免反复打无效 thread
+      if (status === 404) {
+        message.warning('会话不存在或已失效，已返回列表')
+        navigate('/conversations', { replace: true })
+        return
+      }
+      throw err
     } finally {
       setLoading(false)
     }
-  }, [threadId])
+  }, [threadId, navigate])
 
   useEffect(() => {
     void load()
