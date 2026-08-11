@@ -32,7 +32,7 @@ npm run dev
 
 浏览器打开 http://localhost:5173
 
-开发模式下 Vite 将 `/api` 代理到 `http://127.0.0.1:8000`。
+开发模式下 Vite 将 `/api` 代理到 `http://127.0.0.1:8001`。
 
 ## 环境变量
 

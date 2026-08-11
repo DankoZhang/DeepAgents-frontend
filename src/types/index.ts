@@ -68,7 +68,6 @@ export interface LlmModelUpdate {
   provider?: ModelProvider
   model_name?: string
   api_key?: string | null
-  clear_api_key?: boolean
   base_url?: string | null
   temperature?: number | null
   top_p?: number | null

@@ -10,7 +10,7 @@ export const api = axios.create({
 })
 
 /** 生产鉴权：优先 localStorage，其次环境变量 VITE_AUTH_TOKEN */
-function resolveAuthToken(): string | null {
+export function resolveAuthToken(): string | null {
   try {
     const fromStorage = localStorage.getItem('auth_token')
     if (fromStorage?.trim()) return fromStorage.trim()

@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, resolveAuthToken } from './client'
 import { listAllByCursor, parsePage, type PageResult } from './paging'
 import type {
   Agent,
@@ -242,7 +242,6 @@ export const resetBootstrapCache = () => {
 
 export const listConversations = (params?: {
   methodology_id?: string
-  user_id?: string
   limit?: number
   cursor?: string
 }) =>
@@ -251,7 +250,6 @@ export const listConversations = (params?: {
 
 export const createConversation = (body: {
   methodology_id: string
-  user_id?: string
   thread_id?: string
 }) => api.post<Conversation>('/api/conversation', body).then((r) => r.data)
 
@@ -266,33 +264,14 @@ export const getConversationMessages = (threadId: string) =>
     .get<ConversationMessages>(`/api/conversation/${threadId}/messages`)
     .then((r) => r.data)
 
-export const chat = (threadId: string, message: string) =>
-  api
-    .post<ChatResponse>('/api/chat', { thread_id: threadId, message })
-    .then((r) => r.data)
-
-export const chatResume = (threadId: string, approve: boolean) =>
-  api
-    .post<ChatResponse>('/api/chat/resume', { thread_id: threadId, approve })
-    .then((r) => r.data)
-
 function authHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'text/event-stream',
   }
-  try {
-    const fromStorage = localStorage.getItem('auth_token')
-    if (fromStorage?.trim()) {
-      headers.Authorization = `Bearer ${fromStorage.trim()}`
-      return headers
-    }
-  } catch {
-    // ignore
-  }
-  const fromEnv = import.meta.env.VITE_AUTH_TOKEN as string | undefined
-  if (fromEnv?.trim()) {
-    headers.Authorization = `Bearer ${fromEnv.trim()}`
+  const token = resolveAuthToken()
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
   }
   return headers
 }
@@ -418,23 +397,19 @@ async function readChatSse(
 export const chatStream = (
   threadId: string,
   message: string,
-  handlers?: ChatSseHandlers | ((text: string) => void),
+  handlers?: ChatSseHandlers,
 ) => {
-  const h: ChatSseHandlers =
-    typeof handlers === 'function' ? { onToken: handlers } : handlers ?? {}
-  return readChatSse('/api/chat/stream', { thread_id: threadId, message }, h)
+  return readChatSse('/api/chat/stream', { thread_id: threadId, message }, handlers ?? {})
 }
 
 export const chatResumeStream = (
   threadId: string,
   approve: boolean,
-  handlers?: ChatSseHandlers | ((text: string) => void),
+  handlers?: ChatSseHandlers,
 ) => {
-  const h: ChatSseHandlers =
-    typeof handlers === 'function' ? { onToken: handlers } : handlers ?? {}
   return readChatSse(
     '/api/chat/resume/stream',
     { thread_id: threadId, approve },
-    h,
+    handlers ?? {},
   )
 }

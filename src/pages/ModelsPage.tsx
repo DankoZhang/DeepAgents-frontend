@@ -65,7 +65,6 @@ export default function ModelsPage() {
       provider: row.provider,
       model_name: row.model_name,
       api_key: '',
-      clear_api_key: false,
       base_url: row.base_url,
       temperature: row.temperature,
       top_p: row.top_p,
@@ -84,7 +83,6 @@ export default function ModelsPage() {
         provider: values.provider,
         model_name: values.model_name,
         api_key: values.api_key || undefined,
-        clear_api_key: !!values.clear_api_key,
         base_url: values.base_url || null,
         temperature: values.temperature ?? null,
         top_p: values.top_p ?? null,
@@ -117,9 +115,9 @@ export default function ModelsPage() {
     try {
       const result = await testModelById(row.id)
       if (result.ok) {
-        message.success(result.message || '连通性正常')
+        message.success('连通性测试成功')
       } else {
-        message.error(result.message || '连通性测试失败')
+        message.error('连通性测试失败')
       }
     } finally {
       setTestingId(null)
@@ -137,25 +135,24 @@ export default function ModelsPage() {
       'max_tokens',
       'timeout',
     ])
+    // 后端若收到 model_id 会只用库内配置，忽略表单 api_key。
+    // 编辑且 key 留空 → 按已存密钥试连；填了新 key / 新建 → 走内联配置。
+    const useSavedKey = Boolean(editing?.id && !values.api_key)
     const result = await testModel({
-      model_id: editing?.id,
-      provider: editing ? undefined : values.provider,
-      model_name: editing ? undefined : values.model_name,
+      model_id: useSavedKey ? editing?.id : undefined,
+      provider: useSavedKey ? undefined : values.provider,
+      model_name: useSavedKey ? undefined : values.model_name,
       api_key: values.api_key || undefined,
-      base_url: values.base_url || undefined,
+      base_url: useSavedKey ? undefined : values.base_url || undefined,
       temperature: values.temperature ?? 0,
       top_p: values.top_p ?? undefined,
       max_tokens: values.max_tokens ?? 16,
       timeout: values.timeout ?? 30,
     })
     if (result.ok) {
-      message.success(
-        result.reply_preview
-          ? `${result.message}：${result.reply_preview}`
-          : result.message || '连通性正常',
-      )
+      message.success('连通性测试成功')
     } else {
-      message.error(result.message || '连通性测试失败')
+      message.error('连通性测试失败')
     }
   }
 
@@ -303,16 +300,6 @@ export default function ModelsPage() {
           >
             <Input.Password placeholder="sk-..." autoComplete="new-password" />
           </Form.Item>
-          {editing?.has_api_key ? (
-            <Form.Item name="clear_api_key" label="清空已存 API Key">
-              <Select
-                options={[
-                  { value: false, label: '否' },
-                  { value: true, label: '是，清空密钥' },
-                ]}
-              />
-            </Form.Item>
-          ) : null}
           {(provider === 'openai_compatible' ||
             editing?.provider === 'openai_compatible' ||
             provider === 'openai') && (
