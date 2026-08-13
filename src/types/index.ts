@@ -27,6 +27,7 @@ export interface ModelBrief {
   top_p?: number | null
   max_tokens?: number | null
   status?: string
+  is_default?: boolean
 }
 
 export type ModelProvider = 'openai' | 'anthropic' | 'openai_compatible'
@@ -43,6 +44,7 @@ export interface LlmModel {
   timeout: number | null
   config: Record<string, unknown>
   status: string
+  is_default: boolean
   has_api_key: boolean
   created_time: string
   updated_time: string
@@ -60,6 +62,7 @@ export interface LlmModelCreate {
   timeout?: number | null
   config?: Record<string, unknown>
   status?: string
+  is_default?: boolean
   id?: string
 }
 
@@ -75,6 +78,7 @@ export interface LlmModelUpdate {
   timeout?: number | null
   config?: Record<string, unknown>
   status?: string
+  is_default?: boolean
 }
 
 export interface ModelTestRequest {

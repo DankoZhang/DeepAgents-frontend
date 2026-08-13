@@ -32,9 +32,10 @@ function roleOf(agent: Agent): string {
 
 function modelLabel(agent: Agent): string {
   if (agent.llm_model) {
-    return `${agent.llm_model.name} (${agent.llm_model.model_name})`
+    const tag = agent.llm_model.is_default ? '（默认）' : ''
+    return `${agent.llm_model.name} (${agent.llm_model.model_name})${tag}`
   }
-  return '默认'
+  return '未绑定模型'
 }
 
 export default function AgentsPage() {
@@ -253,11 +254,13 @@ export default function AgentsPage() {
           <Form.Item name="model_id" label="目录模型">
             <Select
               allowClear
-              placeholder="从大模型目录选择（留空则用默认模型）"
+              placeholder="从大模型目录选择（留空则用当前默认模型）"
               optionFilterProp="label"
               options={models.map((m) => ({
                 value: m.id,
-                label: `${m.name} · ${m.provider}/${m.model_name}`,
+                label: `${m.name} · ${m.provider}/${m.model_name}${
+                  m.is_default ? '（默认）' : ''
+                }`,
               }))}
             />
           </Form.Item>

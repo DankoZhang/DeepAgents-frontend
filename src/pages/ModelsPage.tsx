@@ -11,6 +11,7 @@ import {
   Table,
   Tag,
   Typography,
+  Switch,
   message,
 } from 'antd'
 import {
@@ -54,6 +55,7 @@ export default function ModelsPage() {
       provider: 'openai',
       temperature: 0.2,
       status: 'active',
+      is_default: false,
     })
     setDrawerOpen(true)
   }
@@ -71,6 +73,7 @@ export default function ModelsPage() {
       max_tokens: row.max_tokens,
       timeout: row.timeout,
       status: row.status,
+      is_default: row.is_default,
     })
     setDrawerOpen(true)
   }
@@ -89,6 +92,7 @@ export default function ModelsPage() {
         max_tokens: values.max_tokens ?? null,
         timeout: values.timeout ?? null,
         status: values.status,
+        is_default: Boolean(values.is_default),
       })
       message.success('模型已更新')
     } else {
@@ -103,6 +107,7 @@ export default function ModelsPage() {
         max_tokens: values.max_tokens ?? null,
         timeout: values.timeout ?? null,
         status: values.status ?? 'active',
+        is_default: Boolean(values.is_default),
       })
       message.success('模型已创建')
     }
@@ -170,6 +175,12 @@ export default function ModelsPage() {
     await reload()
   }
 
+  const onSetDefault = async (row: LlmModel) => {
+    await updateModel(row.id, { is_default: true })
+    message.success(`已将「${row.name}」设为默认模型`)
+    await reload()
+  }
+
   return (
     <>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -178,7 +189,7 @@ export default function ModelsPage() {
             大模型
           </Typography.Title>
           <Typography.Text type="secondary">
-            配置 provider / 模型名 / 超参数；Agent 通过模型目录绑定使用。
+            配置 provider / 模型名 / 超参数；同一用户只能有一个默认模型，创建 Agent 未指定模型时使用。
           </Typography.Text>
         </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -225,8 +236,15 @@ export default function ModelsPage() {
             ),
           },
           {
+            title: '默认',
+            dataIndex: 'is_default',
+            width: 80,
+            render: (v: boolean) =>
+              v ? <Tag color="blue">默认</Tag> : '—',
+          },
+          {
             title: '操作',
-            width: 280,
+            width: 320,
             render: (_, row) => (
               <Space wrap>
                 <Button
@@ -247,6 +265,14 @@ export default function ModelsPage() {
                 <Button size="small" onClick={() => void onToggleStatus(row)}>
                   {row.status === 'active' ? '停用' : '启用'}
                 </Button>
+                {!row.is_default && (
+                  <Button
+                    size="small"
+                    onClick={() => void onSetDefault(row)}
+                  >
+                    设为默认
+                  </Button>
+                )}
                 <Popconfirm
                   title="确认删除该模型？"
                   onConfirm={() => void onDelete(row)}
@@ -330,6 +356,14 @@ export default function ModelsPage() {
                 { value: 'disabled', label: 'disabled' },
               ]}
             />
+          </Form.Item>
+          <Form.Item
+            name="is_default"
+            label="默认模型"
+            valuePropName="checked"
+            extra="同一用户只能有一个默认模型；开启后其他模型会自动取消默认。创建 Agent 未指定模型时使用该模型。"
+          >
+            <Switch />
           </Form.Item>
         </Form>
       </Drawer>
