@@ -23,6 +23,8 @@ import type {
   SkillUpdate,
   Tool,
   ToolCreate,
+  ToolTestRequest,
+  ToolTestResult,
 } from '../types'
 
 export type { PageResult } from './paging'
@@ -185,12 +187,19 @@ export const listAllTools = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
 export const createTool = (body: ToolCreate) =>
   api.post<Tool>('/api/tool', body).then((r) => r.data)
 
+export const testTool = (body: ToolTestRequest) =>
+  api.post<ToolTestResult>('/api/tool/test', body).then((r) => r.data)
+
+export const testToolById = (id: string) =>
+  api.post<ToolTestResult>(`/api/tool/${id}/test`).then((r) => r.data)
+
 export const updateTool = (
   id: string,
   body: {
     name?: string
     description?: string
     mcp?: ToolCreate['mcp']
+    http?: ToolCreate['http']
     requires_hitl?: boolean
     status?: string
   },

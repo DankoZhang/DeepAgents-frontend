@@ -181,7 +181,7 @@ export default function AgentsPage() {
             render: (_, row) =>
               row.tools.length
                 ? row.tools.map((t) => (
-                    <Tag key={t.id} color={t.tool_type === 'mcp' ? 'purple' : undefined}>
+                    <Tag key={t.id} color={t.tool_type === 'mcp' ? 'purple' : t.tool_type === 'http' ? 'blue' : undefined}>
                       {t.name}
                     </Tag>
                   ))
@@ -278,7 +278,7 @@ export default function AgentsPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="tool_ids" label="绑定 Tools（内置 + MCP）">
+          <Form.Item name="tool_ids" label="绑定 Tools（内置 + MCP + HTTP）">
             <Select
               mode="multiple"
               allowClear

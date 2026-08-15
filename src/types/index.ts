@@ -100,6 +100,19 @@ export interface ModelTestResult {
   reply_preview?: string | null
 }
 
+export interface ToolTestRequest {
+  tool_id?: string | null
+  tool_type?: 'mcp' | 'http' | null
+  mcp?: McpServerConfig
+  http?: HttpToolConfig
+}
+
+export interface ToolTestResult {
+  ok: boolean
+  message: string
+  detail?: string | null
+}
+
 export interface Skill {
   id: string
   name: string
@@ -142,7 +155,7 @@ export interface Tool {
   id: string
   name: string
   description: string
-  tool_type: 'builtin' | 'mcp' | string
+  tool_type: 'builtin' | 'mcp' | 'http' | string
   class_path?: string | null
   requires_hitl?: boolean
   config: Record<string, unknown>
@@ -272,10 +285,21 @@ export interface AgentUpdate {
   skill_ids?: string[]
 }
 
+export interface HttpToolConfig {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  url: string
+  input_schema: Record<string, unknown>
+  param_in?: Record<string, 'path' | 'query' | 'body' | 'header'>
+  headers?: Record<string, string>
+  timeout?: number
+}
+
 export interface ToolCreate {
   name: string
   description?: string
-  mcp: McpServerConfig
+  tool_type?: 'mcp' | 'http'
+  mcp?: McpServerConfig
+  http?: HttpToolConfig
   requires_hitl?: boolean
   status?: string
   id?: string
