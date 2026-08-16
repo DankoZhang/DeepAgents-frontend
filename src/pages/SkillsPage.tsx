@@ -10,15 +10,17 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
   message,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
 import type { Skill } from '../types'
 import {
   createSkill,
   deleteSkill,
   listSkills,
   updateSkill,
+  uploadSkillPackage,
 } from '../api'
 import { useCursorPager } from '../hooks/useCursorPager'
 
@@ -107,12 +109,30 @@ export default function SkillsPage() {
             Skills
           </Typography.Title>
           <Typography.Text type="secondary">
-            管理 SKILL.md 内容；运行时物化到 workspace，供 Agent 绑定使用。
+            管理 SKILL.md；也可上传技能目录 zip（附属文件随 Skill 入库，运行时再物化）。
           </Typography.Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          新建 Skill
-        </Button>
+        <Space>
+          <Upload
+            accept=".zip"
+            showUploadList={false}
+            beforeUpload={async (file) => {
+              try {
+                await uploadSkillPackage(file)
+                message.success('技能包已上传')
+                await reload()
+              } catch {
+                // 全局 interceptor 已提示
+              }
+              return false
+            }}
+          >
+            <Button icon={<UploadOutlined />}>上传技能包</Button>
+          </Upload>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建 Skill
+          </Button>
+        </Space>
       </Space>
 
       <Table
@@ -206,6 +226,42 @@ export default function SkillsPage() {
               placeholder="完整 SKILL.md（可含 YAML frontmatter）"
             />
           </Form.Item>
+          {editing ? (
+            <Form.Item label="附属文件">
+              <Typography.Text type="secondary">
+                {Object.keys(editing.files ?? {}).length
+                  ? Object.keys(editing.files).join('、')
+                  : '无（JSON 创建的 Skill 仅有 SKILL.md）'}
+              </Typography.Text>
+              <div style={{ marginTop: 8 }}>
+                <Upload
+                  accept=".zip"
+                  showUploadList={false}
+                  beforeUpload={async (file) => {
+                    try {
+                      const updated = await uploadSkillPackage(file, editing.id)
+                      setEditing(updated)
+                      form.setFieldsValue({
+                        name: updated.name,
+                        description: updated.description,
+                        content: updated.content,
+                        status: updated.status,
+                      })
+                      message.success('技能包已替换')
+                      await reload()
+                    } catch {
+                      // 全局 interceptor 已提示
+                    }
+                    return false
+                  }}
+                >
+                  <Button size="small" icon={<UploadOutlined />}>
+                    替换技能包
+                  </Button>
+                </Upload>
+              </div>
+            </Form.Item>
+          ) : null}
           <Form.Item name="status" label="状态" rules={[{ required: true }]}>
             <Select
               options={[

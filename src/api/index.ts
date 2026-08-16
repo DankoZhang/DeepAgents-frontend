@@ -170,6 +170,13 @@ export const getSkill = (id: string) =>
 export const createSkill = (body: SkillCreate) =>
   api.post<Skill>('/api/skill', body).then((r) => r.data)
 
+export const uploadSkillPackage = (file: File, skillId?: string) => {
+  const data = new FormData()
+  data.append('file', file)
+  const url = skillId ? `/api/skill/${skillId}/upload` : '/api/skill/upload'
+  return api.post<Skill>(url, data).then((r) => r.data)
+}
+
 export const updateSkill = (id: string, body: SkillUpdate) =>
   api.patch<Skill>(`/api/skill/${id}`, body).then((r) => r.data)
 

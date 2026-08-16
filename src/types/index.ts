@@ -118,6 +118,7 @@ export interface Skill {
   name: string
   description: string
   content: string
+  files: Record<string, string>
   config: Record<string, unknown>
   status: string
   created_time: string
