@@ -60,34 +60,8 @@ export const enableAgent = (id: string) =>
 export const disableAgent = (id: string) =>
   api.post<Agent>(`/api/agent/${id}/disable`).then((r) => r.data)
 
-export const bindAgentTools = (id: string, toolIds: string[], replace = true) =>
-  api
-    .post<Agent>(`/api/agent/${id}/tools`, { tool_ids: toolIds, replace })
-    .then((r) => r.data)
-
-export const bindAgentMiddlewares = (
-  id: string,
-  middlewareIds: string[],
-  replace = true,
-) =>
-  api
-    .post<Agent>(`/api/agent/${id}/middlewares`, {
-      middleware_ids: middlewareIds,
-      replace,
-    })
-    .then((r) => r.data)
-
-export const bindAgentSkills = (
-  id: string,
-  skillIds: string[],
-  replace = true,
-) =>
-  api
-    .post<Agent>(`/api/agent/${id}/skills`, {
-      skill_ids: skillIds,
-      replace,
-    })
-    .then((r) => r.data)
+export const copyAgent = (id: string) =>
+  api.post<Agent>(`/api/agent/${id}/copy`).then((r) => r.data)
 
 // ── 大模型目录 ───────────────────────────────────────────────────────────
 
@@ -129,6 +103,9 @@ export const getSkill = (id: string) =>
 export const createSkill = (body: SkillCreate) =>
   api.post<Skill>('/api/skill', body).then((r) => r.data)
 
+export const copySkill = (id: string) =>
+  api.post<Skill>(`/api/skill/${id}/copy`).then((r) => r.data)
+
 export const uploadSkillPackage = (file: File, skillId?: string) => {
   const data = new FormData()
   data.append('file', file)
@@ -152,6 +129,9 @@ export const listAllTools = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
 
 export const createTool = (body: ToolCreate) =>
   api.post<Tool>('/api/tool', body).then((r) => r.data)
+
+export const copyTool = (id: string) =>
+  api.post<Tool>(`/api/tool/${id}/copy`).then((r) => r.data)
 
 export const testTool = (body: ToolTestRequest) =>
   api.post<ToolTestResult>('/api/tool/test', body).then((r) => r.data)

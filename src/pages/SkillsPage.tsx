@@ -13,10 +13,11 @@ import {
   Upload,
   message,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons'
 import type { Skill } from '../types'
 import {
   createSkill,
+  copySkill,
   deleteSkill,
   listSkills,
   updateSkill,
@@ -93,6 +94,12 @@ export default function SkillsPage() {
     await reload()
   }
 
+  const onCopy = async (row: Skill) => {
+    const copied = await copySkill(row.id)
+    message.success(`已复制为 ${copied.name}`)
+    await reload()
+  }
+
   const onToggleStatus = async (row: Skill) => {
     await updateSkill(row.id, {
       status: row.status === 'active' ? 'disabled' : 'active',
@@ -159,7 +166,7 @@ export default function SkillsPage() {
           },
           {
             title: '操作',
-            width: 220,
+            width: 280,
             render: (_, row) => (
               <Space>
                 <Button
@@ -168,6 +175,13 @@ export default function SkillsPage() {
                   onClick={() => openEdit(row)}
                 >
                   编辑
+                </Button>
+                <Button
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={() => void onCopy(row)}
+                >
+                  复制
                 </Button>
                 <Button size="small" onClick={() => void onToggleStatus(row)}>
                   {row.status === 'active' ? '停用' : '启用'}
@@ -204,9 +218,10 @@ export default function SkillsPage() {
             label="名称（亦作物化目录名）"
             rules={[
               { required: true, message: '请输入名称' },
+              { max: 128, message: '最长 128 个字符' },
               {
-                pattern: /^[a-z0-9][a-z0-9_-]*$/i,
-                message: '建议使用字母、数字、下划线或连字符',
+                pattern: /^[a-z0-9][a-z0-9_-]{0,127}$/i,
+                message: '字母或数字开头，仅含字母、数字、下划线或连字符',
               },
             ]}
           >

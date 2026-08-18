@@ -12,10 +12,11 @@ import {
   Typography,
   message,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { CopyOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Agent, LlmModel, Middleware, Skill, Tool } from '../types'
 import {
   createAgent,
+  copyAgent,
   deleteAgent,
   disableAgent,
   enableAgent,
@@ -159,6 +160,12 @@ export default function AgentsPage() {
     await Promise.all([reload(), loadOptions()])
   }
 
+  const onCopy = async (agent: Agent) => {
+    const copied = await copyAgent(agent.id)
+    message.success(`已复制为 ${copied.name}`)
+    await Promise.all([reload(), loadOptions()])
+  }
+
   const onToggleEnabled = async (agent: Agent) => {
     if (isEnabled(agent)) {
       await disableAgent(agent.id)
@@ -250,7 +257,7 @@ export default function AgentsPage() {
           },
           {
             title: '操作',
-            width: 280,
+            width: 340,
             render: (_, row) => {
               const enabled = isEnabled(row)
               return (
@@ -287,6 +294,13 @@ export default function AgentsPage() {
                     onClick={() => openEdit(row)}
                   >
                     编辑
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => void onCopy(row)}
+                  >
+                    复制
                   </Button>
                   <Popconfirm
                     title="确认删除该 Agent？"

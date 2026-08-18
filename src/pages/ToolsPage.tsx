@@ -14,9 +14,9 @@ import {
   Typography,
   message,
 } from 'antd'
-import { ApiOutlined, DeleteOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { ApiOutlined, CopyOutlined, DeleteOutlined, MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import type { HttpToolConfig, McpServerConfig, Tool, ToolTestResult } from '../types'
-import { createTool, deleteTool, listTools, testTool, testToolById, updateTool } from '../api'
+import { copyTool, createTool, deleteTool, listTools, testTool, testToolById, updateTool } from '../api'
 import { useCursorPager } from '../hooks/useCursorPager'
 
 const DEFAULT_INPUT_SCHEMA = `{
@@ -260,6 +260,12 @@ export default function ToolsPage() {
     await reload()
   }
 
+  const onCopy = async (tool: Tool) => {
+    const copied = await copyTool(tool.id)
+    message.success(`已复制为 ${copied.name}`)
+    await reload()
+  }
+
   return (
     <>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -338,7 +344,7 @@ export default function ToolsPage() {
           },
           {
             title: '操作',
-            width: 220,
+            width: 280,
             render: (_, row) =>
               row.tool_type === 'builtin' ? (
                 <Button size="small" onClick={() => void onDisableBuiltin(row)}>
@@ -353,6 +359,13 @@ export default function ToolsPage() {
                     onClick={() => void onTestSaved(row)}
                   >
                     测试
+                  </Button>
+                  <Button
+                    size="small"
+                    icon={<CopyOutlined />}
+                    onClick={() => void onCopy(row)}
+                  >
+                    复制
                   </Button>
                   <Popconfirm
                     title={`确认删除该 ${row.tool_type === 'http' ? 'HTTP' : 'MCP'} 工具？`}
