@@ -11,10 +11,6 @@ import type {
   LlmModel,
   LlmModelCreate,
   LlmModelUpdate,
-  Methodology,
-  MethodologyCreate,
-  MethodologyDetail,
-  MethodologyUpdate,
   Middleware,
   ModelTestRequest,
   ModelTestResult,
@@ -38,49 +34,6 @@ type ListQuery = {
   methodology_id?: string
 }
 
-// ── Methodology ──────────────────────────────────────────────────────────
-
-export const listMethodologies = (params?: ListQuery) =>
-  api
-    .get<Methodology[]>('/api/methodology/list', { params })
-    .then(parsePage)
-
-/** 下拉等需要全量时：按 cursor 拉完。 */
-export const listAllMethodologies = (params?: Omit<ListQuery, 'limit' | 'cursor'>) =>
-  listAllByCursor((cursor) =>
-    listMethodologies({ ...params, limit: 100, cursor }),
-  )
-
-export const getMethodology = (id: string) =>
-  api.get<MethodologyDetail>(`/api/methodology/${id}`).then((r) => r.data)
-
-export const createMethodology = (body: MethodologyCreate) =>
-  api.post<MethodologyDetail>('/api/methodology', body).then((r) => r.data)
-
-export const updateMethodology = (id: string, body: MethodologyUpdate) =>
-  api.patch<Methodology>(`/api/methodology/${id}`, body).then((r) => r.data)
-
-export const deleteMethodology = (id: string) =>
-  api.delete(`/api/methodology/${id}`).then((r) => r.data)
-
-export const publishMethodology = (id: string) =>
-  api.post<Methodology>(`/api/methodology/${id}/publish`).then((r) => r.data)
-
-export const bindMethodologyAgents = (
-  id: string,
-  agentIds: string[],
-  replace = true,
-) =>
-  api
-    .post<MethodologyDetail>(`/api/methodology/${id}/agents`, {
-      agent_ids: agentIds,
-      replace,
-    })
-    .then((r) => r.data)
-
-export const listMethodologyVersions = (id: string) =>
-  api.get(`/api/methodology/${id}/versions`).then((r) => r.data)
-
 // ── Agent（全局）─────────────────────────────────────────────────────────
 
 export const listAgents = (params?: ListQuery) =>
@@ -100,6 +53,12 @@ export const updateAgent = (id: string, body: AgentUpdate) =>
 
 export const deleteAgent = (id: string) =>
   api.delete(`/api/agent/${id}`).then((r) => r.data)
+
+export const enableAgent = (id: string) =>
+  api.post<Agent>(`/api/agent/${id}/enable`).then((r) => r.data)
+
+export const disableAgent = (id: string) =>
+  api.post<Agent>(`/api/agent/${id}/disable`).then((r) => r.data)
 
 export const bindAgentTools = (id: string, toolIds: string[], replace = true) =>
   api

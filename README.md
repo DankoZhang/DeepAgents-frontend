@@ -1,15 +1,14 @@
 # DeepAgents Frontend
 
-可配置方法论驱动的多 Agent 平台前端（MVP）。
+可配置多 Agent 平台前端（MVP）。
 
 技术栈：Vite + React + TypeScript + Ant Design。
 
 ## 功能
 
-- **方法论管理**：列表 / 创建 / 编辑 / 删除 / 发布；详情页勾选全局 Agent
-- **全局 Agent**：自定义 Prompt / 模型，勾选内置或 MCP 工具与内置 Middleware
+- **Agent**：创建主/子 Agent，配置 Prompt / 模型 / Skills / 工具；启用后锁定编辑。主 Agent 启用时发布同名方法论
 - **工具**：内置工具可勾选/停用；新增仅支持配置 MCP Server
-- **会话与聊天**：选择已发布方法论创建会话，多轮对话，支持 HITL 批准/拒绝
+- **会话与聊天**：选择已启用的主 Agent 创建会话，多轮对话，支持 HITL 批准/拒绝
 
 ## 启动
 

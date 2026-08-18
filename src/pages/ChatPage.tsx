@@ -22,6 +22,7 @@ import {
   chatStream,
   getConversation,
   getConversationMessages,
+  listAllAgents,
 } from '../api'
 
 type ToolActivity = {
@@ -74,6 +75,7 @@ export default function ChatPage() {
   const { threadId = '' } = useParams()
   const navigate = useNavigate()
   const [conv, setConv] = useState<Conversation | null>(null)
+  const [agentName, setAgentName] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [interrupted, setInterrupted] = useState(false)
   const [interrupt, setInterrupt] = useState<HitlInterrupt[] | null>(null)
@@ -92,11 +94,16 @@ export default function ChatPage() {
     if (!threadId) return
     setLoading(true)
     try {
-      const [c, hist] = await Promise.all([
+      const [c, hist, agentList] = await Promise.all([
         getConversation(threadId),
         getConversationMessages(threadId),
+        listAllAgents(),
       ])
       setConv(c)
+      setAgentName(
+        agentList.find((a) => a.methodology_id === c.methodology_id)?.name ??
+          c.methodology_id,
+      )
       setMessages(
         hist.messages.filter((m) => m.role === 'user' || m.role === 'assistant'),
       )
@@ -246,7 +253,7 @@ export default function ChatPage() {
         </Typography.Title>
         {conv && (
           <>
-            <Tag>{conv.methodology_id}</Tag>
+            <Tag>{agentName ?? conv.methodology_id}</Tag>
             <Tag color="blue">v{conv.methodology_version}</Tag>
             <Typography.Text type="secondary" copyable={{ text: threadId }}>
               {threadId}

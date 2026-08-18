@@ -176,24 +176,12 @@ export interface Agent {
   system_prompt: string
   model_id: string | null
   config: Record<string, unknown>
+  enabled?: boolean
+  methodology_id?: string | null
   llm_model?: ModelBrief | null
   tools: ToolBrief[]
   middlewares: MiddlewareBrief[]
   skills: SkillBrief[]
-}
-
-export interface Methodology {
-  id: string
-  name: string
-  description: string
-  version: number
-  status: string
-  created_time: string
-  updated_time: string
-}
-
-export interface MethodologyDetail extends Methodology {
-  agents: Agent[]
 }
 
 export interface Conversation {
@@ -251,18 +239,6 @@ export interface ChatSseHandlers {
   onTodo?: (payload: { todos?: unknown }) => void
   onSubagent?: (name: string) => void
   onPing?: () => void
-}
-
-export interface MethodologyCreate {
-  name: string
-  description?: string
-  id?: string
-  agent_ids?: string[]
-}
-
-export interface MethodologyUpdate {
-  name?: string
-  description?: string
 }
 
 export interface AgentCreate {

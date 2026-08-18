@@ -13,18 +13,26 @@ import {
 import { CommentOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
-import type { Conversation, Methodology } from '../types'
+import type { Agent, Conversation } from '../types'
 import {
   createConversation,
   deleteConversation,
-  listAllMethodologies,
+  listAllAgents,
   listConversations,
 } from '../api'
 import { useCursorPager } from '../hooks/useCursorPager'
 
+function roleOf(agent: Agent): string {
+  return String(agent.config?.role ?? 'subagent')
+}
+
+function isEnabled(agent: Agent): boolean {
+  return Boolean(agent.enabled)
+}
+
 export default function ConversationsPage() {
   const navigate = useNavigate()
-  const [methodologies, setMethodologies] = useState<Methodology[]>([])
+  const [agents, setAgents] = useState<Agent[]>([])
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
@@ -33,15 +41,19 @@ export default function ConversationsPage() {
   )
 
   const loadOptions = useCallback(async () => {
-    setMethodologies(await listAllMethodologies())
+    setAgents(await listAllAgents())
   }, [])
 
   useEffect(() => {
     void loadOptions()
   }, [loadOptions])
 
-  const nameOf = (id: string) =>
-    methodologies.find((m) => m.id === id)?.name ?? id
+  const supervisors = agents.filter(
+    (a) => roleOf(a) === 'supervisor' && isEnabled(a) && a.methodology_id,
+  )
+
+  const nameOf = (methodologyId: string) =>
+    agents.find((a) => a.methodology_id === methodologyId)?.name ?? methodologyId
 
   const onCreate = async () => {
     const values = await form.validateFields()
@@ -59,8 +71,6 @@ export default function ConversationsPage() {
     await reload()
   }
 
-  const published = methodologies.filter((m) => m.status === 'published')
-
   return (
     <>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -69,7 +79,7 @@ export default function ConversationsPage() {
             会话
           </Typography.Title>
           <Typography.Text type="secondary">
-            选择已发布方法论创建会话，与 Agent 对话
+            选择已启用的主 Agent 创建会话
           </Typography.Text>
         </div>
         <Button
@@ -101,7 +111,7 @@ export default function ConversationsPage() {
             ),
           },
           {
-            title: '方法论',
+            title: '主 Agent',
             dataIndex: 'methodology_id',
             render: (mid: string) => nameOf(mid),
           },
@@ -154,19 +164,19 @@ export default function ConversationsPage() {
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="methodology_id"
-            label="方法论"
-            rules={[{ required: true, message: '请选择方法论' }]}
+            label="主 Agent"
+            rules={[{ required: true, message: '请选择已启用的主 Agent' }]}
             extra={
-              published.length === 0
-                ? '暂无已发布方法论，请先在「方法论」页发布'
-                : '新会话将绑定当前最新版本'
+              supervisors.length === 0
+                ? '暂无已启用的主 Agent，请先在 Agent 页启用'
+                : '新会话将绑定该主 Agent 当前已发布版本'
             }
           >
             <Select
-              placeholder="选择已发布方法论"
-              options={published.map((m) => ({
-                value: m.id,
-                label: `${m.name}（v${m.version}）`,
+              placeholder="选择已启用的主 Agent"
+              options={supervisors.map((a) => ({
+                value: a.methodology_id as string,
+                label: a.name,
               }))}
             />
           </Form.Item>

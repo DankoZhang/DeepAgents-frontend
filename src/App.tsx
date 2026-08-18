@@ -2,8 +2,6 @@ import { ConfigProvider, App as AntApp } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './layouts/AppLayout'
-import MethodologiesPage from './pages/MethodologiesPage'
-import MethodologyDetailPage from './pages/MethodologyDetailPage'
 import AgentsPage from './pages/AgentsPage'
 import ModelsPage from './pages/ModelsPage'
 import SkillsPage from './pages/SkillsPage'
@@ -26,9 +24,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<AppLayout />}>
-              <Route path="/" element={<Navigate to="/methodologies" replace />} />
-              <Route path="/methodologies" element={<MethodologiesPage />} />
-              <Route path="/methodologies/:id" element={<MethodologyDetailPage />} />
+              <Route path="/" element={<Navigate to="/agents" replace />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/models" element={<ModelsPage />} />
               <Route path="/skills" element={<SkillsPage />} />

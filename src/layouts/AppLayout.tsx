@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Layout, Menu, Spin, Typography, theme } from 'antd'
 import {
-  ApartmentOutlined,
   BookOutlined,
   CloudServerOutlined,
   CommentOutlined,
@@ -15,11 +14,6 @@ import { bootstrapUser, resetBootstrapCache } from '../api'
 const { Header, Sider, Content } = Layout
 
 const items = [
-  {
-    key: '/methodologies',
-    icon: <ApartmentOutlined />,
-    label: <Link to="/methodologies">方法论</Link>,
-  },
   {
     key: '/agents',
     icon: <RobotOutlined />,
@@ -83,7 +77,7 @@ export default function AppLayout() {
 
   const selected =
     items.find((i) => location.pathname.startsWith(i.key))?.key ??
-    '/methodologies'
+    '/agents'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -116,7 +110,7 @@ export default function AppLayout() {
           }}
         >
           <Typography.Title level={4} style={{ margin: 0 }}>
-            可配置方法论驱动的多 Agent 平台
+            可配置多 Agent 平台
           </Typography.Title>
         </Header>
         <Content style={{ margin: 24 }}>
